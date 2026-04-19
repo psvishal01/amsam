@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Login — AMSAM Portal</title>
+  <meta name="description" content="AMSAM Membership Portal — Login to access your membership dashboard, events and profile."/>
+  <link rel="stylesheet" href="/css/global.css"/>
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+
+    .login-page {
+      flex:1; display:flex; align-items:stretch;
+    }
+
+    /* Left panel */
+    .login-hero {
+      flex:1; background:linear-gradient(155deg, #1A2040 0%, #2d3561 50%, #009688 100%);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding:3rem 2.5rem; color:#fff; position:relative; overflow:hidden;
+    }
+    .login-hero::before {
+      content:''; position:absolute; inset:0;
+      background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .hero-logo-wrap {
+      width:90px; height:90px; border-radius:50%;
+      background:rgba(255,255,255,.12); border:3px solid rgba(255,255,255,.3);
+      display:flex; align-items:center; justify-content:center;
+      margin-bottom:1.5rem; backdrop-filter:blur(8px);
+    }
+    .hero-logo-text { font-weight:900; font-size:1.4rem; letter-spacing:.08em; }
+    .hero-title { font-size:2rem; font-weight:800; margin-bottom:.5rem; text-align:center; }
+    .hero-subtitle { font-size:.95rem; opacity:.8; text-align:center; max-width:280px; line-height:1.6; }
+    .hero-divider { width:50px; height:3px; background:var(--teal-light); border-radius:2px; margin:1.5rem 0; }
+    .hero-tags { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:center; }
+    .hero-tag {
+      background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+      border-radius:var(--radius-pill); padding:.3rem .8rem;
+      font-size:.78rem; color:rgba(255,255,255,.85);
+    }
+
+    /* Right panel */
+    .login-form-wrap {
+      width:440px; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      padding:3rem 2.5rem; background:var(--cream);
+    }
+    .login-card {
+      width:100%; background:var(--white);
+      border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+      padding:2.5rem; border:1px solid var(--border-light);
+      animation:slideUp .35s ease;
+    }
+    .login-card-header { text-align:center; margin-bottom:2rem; }
+    .login-card-header h1 { font-size:1.5rem; font-weight:800; color:var(--navy); margin-bottom:.3rem; }
+    .login-card-header p  { font-size:.85rem; color:var(--text-muted); }
+
+    .login-btn { width:100%; padding:.8rem; font-size:1rem; font-weight:600; margin-top:.5rem; }
+
+    .login-footer { text-align:center; margin-top:1.5rem; }
+    .login-footer p { font-size:.78rem; color:var(--text-muted); }
+    .login-footer p a { color:var(--teal); text-decoration:none; font-weight:500; }
+
+    .error-msg {
+      background:#FEF2F2; border:1px solid #FECACA; color:#991B1B;
+      border-radius:var(--radius-sm); padding:.7rem 1rem;
+      font-size:.85rem; margin-bottom:1rem; display:none;
+    }
+    .error-msg.show { display:block; }
+
+    .input-icon-wrap { position:relative; }
+    .input-icon-wrap .form-control { padding-left:2.5rem; }
+    .input-icon { position:absolute; left:.8rem; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:1rem; }
+
+    .password-toggle {
+      position:absolute; right:.8rem; top:50%; transform:translateY(-50%);
+      background:none; border:none; cursor:pointer; color:var(--text-muted);
+      font-size:.9rem; padding:0;
+    }
+    .password-toggle:hover { color:var(--teal); }
+
+    @media(max-width:768px) {
+      .login-hero { display:none; }
+      .login-form-wrap { width:100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-page">
+  <!-- Left Hero Panel -->
+  <div class="login-hero">
+    <div class="hero-logo-wrap">
+      <span class="hero-logo-text">AMSAM</span>
+    </div>
+    <h1 class="hero-title">AMSAM Portal</h1>
+    <p class="hero-subtitle">Association of Medical Students<br>AIIMS Mangalagiri</p>
+    <div class="hero-divider"></div>
+    <div class="hero-tags">
+      <span class="hero-tag">📋 Events</span>
+      <span class="hero-tag">📝 MOM</span>
+      <span class="hero-tag">🪪 Membership Card</span>
+      <span class="hero-tag">📷 QR Verification</span>
+    </div>
+  </div>
+
+  <!-- Right Login Panel -->
+  <div class="login-form-wrap">
+    <div class="login-card">
+      <div class="login-card-header">
+        <h1>Welcome Back</h1>
+        <p>Sign in to your AMSAM account</p>
+      </div>
+
+      <div class="error-msg" id="errorMsg">⚠️ <span id="errorText"></span></div>
+
+      <form id="loginForm" autocomplete="off">
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">✉️</span>
+            <input type="email" id="email" class="form-control" placeholder="your@email.com" required/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="password" class="form-control" placeholder="••••••••" required/>
+            <button type="button" class="password-toggle" id="togglePwd">👁️</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
+          Sign In
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p>Protected portal for AMSAM members only.<br>Contact <a href="mailto:admin@amsam.in">admin@amsam.in</a> for access.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/auth.js"></script>
+</body>
+</html>

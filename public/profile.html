@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>My Profile — AMSAM Portal</title>
+  <meta name="description" content="AMSAM member profile — your info, QR membership card, and account settings."/>
+  <link rel="stylesheet" href="/css/global.css"/>
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+    main { flex:1; }
+
+    .profile-layout { display:grid; grid-template-columns:320px 1fr; gap:1.5rem; align-items:start; }
+
+    /* Profile card */
+    .profile-card { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--border-light); box-shadow:var(--shadow-md); overflow:hidden; }
+    .profile-card-top {
+      background:linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      padding:2rem; text-align:center; position:relative;
+    }
+    .profile-photo-wrap { position:relative; display:inline-block; margin-bottom:1rem; }
+    .profile-photo {
+      width:100px; height:100px; border-radius:50%;
+      border:4px solid rgba(255,255,255,.3);
+      object-fit:cover; display:block;
+      background:rgba(255,255,255,.1);
+    }
+    .profile-initials {
+      width:100px; height:100px; border-radius:50%;
+      border:4px solid rgba(255,255,255,.3);
+      background:rgba(255,255,255,.15);
+      display:flex; align-items:center; justify-content:center;
+      font-size:2rem; font-weight:800; color:#fff;
+      margin:0 auto 1rem;
+    }
+    .profile-name  { color:#fff; font-size:1.2rem; font-weight:700; margin-bottom:.25rem; }
+    .profile-clgid { color:rgba(255,255,255,.7); font-size:.85rem; }
+    .profile-card-body { padding:1.5rem; }
+    .profile-info-row {
+      display:flex; align-items:center; gap:.75rem; padding:.7rem 0;
+      border-bottom:1px solid var(--border-light);
+    }
+    .profile-info-row:last-child { border-bottom:none; }
+    .info-icon  { font-size:1.1rem; flex-shrink:0; width:24px; text-align:center; }
+    .info-label { font-size:.72rem; color:var(--text-muted); }
+    .info-value { font-size:.88rem; font-weight:500; color:var(--navy); }
+
+    /* Membership QR Card */
+    .membership-card {
+      background:linear-gradient(135deg, #1A2040 0%, #2d3561 45%, #009688 100%);
+      border-radius:var(--radius-lg); padding:1.75rem;
+      color:#fff; position:relative; overflow:hidden;
+      box-shadow:var(--shadow-lg);
+    }
+    .membership-card::before {
+      content:''; position:absolute;
+      width:200px; height:200px; border-radius:50%;
+      background:rgba(255,255,255,.04); top:-60px; right:-60px;
+    }
+    .membership-card::after {
+      content:''; position:absolute;
+      width:140px; height:140px; border-radius:50%;
+      background:rgba(255,255,255,.04); bottom:-40px; left:-40px;
+    }
+    .mc-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; }
+    .mc-logo { display:flex; align-items:center; gap:.5rem; }
+    .mc-logo-circle { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.7rem; }
+    .mc-logo-text { font-weight:800; font-size:.9rem; letter-spacing:.05em; }
+    .mc-badge { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.25); border-radius:var(--radius-pill); padding:.2rem .7rem; font-size:.7rem; }
+    .mc-body { display:flex; gap:1.5rem; align-items:center; }
+    .mc-qr { background:#fff; border-radius:var(--radius-sm); padding:.5rem; flex-shrink:0; }
+    .mc-qr img { width:100px; height:100px; display:block; }
+    .mc-qr-loading { width:100px; height:100px; display:flex; align-items:center; justify-content:center; }
+    .mc-info { flex:1; }
+    .mc-name   { font-size:1.1rem; font-weight:800; margin-bottom:.35rem; }
+    .mc-detail { font-size:.78rem; opacity:.8; margin-bottom:.2rem; display:flex; align-items:center; gap:.3rem; }
+    .mc-footer { margin-top:1.25rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,.15); display:flex; justify-content:space-between; align-items:center; }
+    .mc-member-since { font-size:.72rem; opacity:.6; }
+    .mc-scan-hint { font-size:.7rem; opacity:.7; text-align:right; }
+
+    /* Change Password */
+    .pw-card { background:var(--white); border-radius:var(--radius-md); border:1px solid var(--border-light); box-shadow:var(--shadow-sm); }
+    .pw-status { border-radius:var(--radius-sm); padding:.65rem 1rem; font-size:.85rem; margin-bottom:1rem; display:none; }
+    .pw-status.success { background:#F0FDF4; border:1px solid #86EFAC; color:#166534; display:block; }
+    .pw-status.error   { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; display:block; }
+
+    @media(max-width:900px) { .profile-layout { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="/home.html" class="nav-brand">
+    <div class="nav-logo-circle">AM</div>
+    <div class="nav-brand-info">
+      <span class="nav-brand-name">AMSAM</span>
+      <span class="nav-brand-sub">AIIMS Mangalagiri</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="/home.html"      class="nav-link">Home</a></li>
+    <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
+    <li><a href="/profile.html"   class="nav-link active">My Profile</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="nav-user">
+      <div class="nav-avatar" id="navAvatar"></div>
+      <span id="navName"></span>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <h1>My Profile</h1>
+  <p>Your membership information and digital ID card</p>
+</div>
+
+<main>
+  <div class="page-wrap">
+    <div class="profile-layout animate-in">
+
+      <!-- LEFT: Profile info card -->
+      <div>
+        <div class="profile-card" id="profileCard">
+          <div class="page-loader" style="min-height:350px"><div class="spinner"></div><span>Loading profile…</span></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: QR Card + Change Password -->
+      <div style="display:flex;flex-direction:column;gap:1.5rem;">
+
+        <!-- Membership QR Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🪪 Membership Card</span>
+            <button class="btn btn-primary btn-sm" onclick="downloadCard()" id="dlBtn">⬇️ Download</button>
+          </div>
+          <div class="card-body">
+            <div class="membership-card" id="membershipCard">
+              <div class="mc-top">
+                <div class="mc-logo">
+                  <div class="mc-logo-circle">AM</div>
+                  <div>
+                    <div class="mc-logo-text">AMSAM</div>
+                    <div style="font-size:.6rem;opacity:.7;">AIIMS Mangalagiri</div>
+                  </div>
+                </div>
+                <div class="mc-badge">Member</div>
+              </div>
+              <div class="mc-body">
+                <div class="mc-qr" id="mcQR">
+                  <div class="mc-qr-loading"><div class="spinner"></div></div>
+                </div>
+                <div class="mc-info">
+                  <div class="mc-name" id="mcName">Loading…</div>
+                  <div class="mc-detail" id="mcCollegeId">🎓 —</div>
+                  <div class="mc-detail" id="mcDept">🏥 —</div>
+                  <div class="mc-detail" id="mcBatch">📅 Batch —</div>
+                  <div class="mc-detail" id="mcEmail">✉️ —</div>
+                </div>
+              </div>
+              <div class="mc-footer">
+                <span class="mc-member-since" id="mcSince">Member since —</span>
+                <span class="mc-scan-hint">Scan QR to verify membership</span>
+              </div>
+            </div>
+            <p class="text-muted mt-2" style="font-size:.78rem;text-align:center;">This card is your official AMSAM membership ID. Show it at events for verification.</p>
+          </div>
+        </div>
+
+        <!-- Change Password -->
+        <div class="pw-card card" id="changePassword">
+          <div class="card-header">
+            <span class="card-title">🔒 Change Password</span>
+          </div>
+          <div class="card-body">
+            <div class="pw-status" id="pwStatus"></div>
+            <form id="pwForm">
+              <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <input type="password" id="currentPwd" class="form-control" placeholder="Enter current password" required/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" id="newPwd" class="form-control" placeholder="At least 6 characters" required minlength="6"/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <input type="password" id="confirmPwd" class="form-control" placeholder="Re-enter new password" required/>
+              </div>
+              <button type="submit" class="btn btn-primary" id="pwBtn">Update Password</button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri.</p>
+</footer>
+
+<script src="/js/auth.js"></script>
+<script src="/js/profile.js"></script>
+</body>
+</html>

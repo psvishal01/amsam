@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Home — AMSAM Portal</title>
+  <meta name="description" content="AMSAM student home page — quick access to your dashboard, events and profile."/>
+  <link rel="stylesheet" href="/css/global.css"/>
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+    main { flex:1; }
+
+    /* Hero banner */
+    .home-hero {
+      background:linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 60%, #1a5f5a 100%);
+      color:#fff; padding:3.5rem 2rem; text-align:center; position:relative; overflow:hidden;
+    }
+    .home-hero::before {
+      content:'AMSAM'; position:absolute; font-size:12rem; font-weight:900;
+      color:rgba(255,255,255,.03); top:50%; left:50%; transform:translate(-50%,-50%);
+      pointer-events:none; letter-spacing:.2em;
+    }
+    .home-hero h1 { font-size:2.2rem; font-weight:800; margin-bottom:.5rem; }
+    .home-hero h1 span { color:var(--gold); }
+    .home-hero p { font-size:1rem; opacity:.8; max-width:480px; margin:0 auto; }
+
+    /* Marquee */
+    .marquee-wrap {
+      background:var(--navy-light); color:rgba(255,255,255,.85);
+      padding:.5rem 0; overflow:hidden; font-size:.82rem;
+    }
+    .marquee-inner {
+      display:inline-flex; gap:4rem; white-space:nowrap;
+      animation:marquee 22s linear infinite;
+    }
+    @keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+    /* Quick nav cards */
+    .nav-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1.25rem; margin-top:2rem; }
+    .nav-card {
+      background:var(--white); border-radius:var(--radius-lg);
+      border:1px solid var(--border-light); box-shadow:var(--shadow-sm);
+      padding:2rem 1.5rem; text-align:center; cursor:pointer;
+      transition:var(--transition); text-decoration:none; color:inherit;
+      display:flex; flex-direction:column; align-items:center; gap:.75rem;
+    }
+    .nav-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-md); border-color:var(--teal-light); }
+    .nav-card-icon {
+      width:60px; height:60px; border-radius:var(--radius-md);
+      display:flex; align-items:center; justify-content:center; font-size:1.6rem;
+    }
+    .icon-teal   { background:var(--teal-pale); }
+    .icon-navy   { background:#E8EAF6; }
+    .icon-gold   { background:var(--gold-pale); }
+    .nav-card h3 { font-size:1rem; font-weight:700; color:var(--navy); }
+    .nav-card p  { font-size:.82rem; color:var(--text-muted); }
+
+    /* Stats strip */
+    .stats-strip {
+      background:var(--navy); color:#fff;
+      display:grid; grid-template-columns:repeat(4,1fr); gap:0;
+    }
+    .stat-item { padding:1.5rem; text-align:center; border-right:1px solid rgba(255,255,255,.1); }
+    .stat-item:last-child { border-right:none; }
+    .stat-num  { font-size:1.8rem; font-weight:800; color:var(--gold); }
+    .stat-lbl  { font-size:.75rem; opacity:.65; margin-top:.2rem; }
+
+    /* Upcoming events preview */
+    .event-preview {
+      background:var(--white); border-radius:var(--radius-md);
+      border:1px solid var(--border-light); box-shadow:var(--shadow-sm);
+      padding:1.25rem 1.4rem; display:flex; gap:1rem; align-items:flex-start;
+      transition:var(--transition); cursor:pointer; text-decoration:none; color:inherit;
+    }
+    .event-preview:hover { border-color:var(--teal-light); box-shadow:var(--shadow-md); }
+    .event-date-box {
+      background:var(--navy); color:#fff; border-radius:var(--radius-sm);
+      padding:.4rem .7rem; text-align:center; flex-shrink:0; min-width:48px;
+    }
+    .event-date-day   { font-size:1.4rem; font-weight:800; line-height:1; }
+    .event-date-month { font-size:.65rem; opacity:.75; }
+    .event-info h4    { font-size:.95rem; font-weight:600; color:var(--navy); margin-bottom:.2rem; }
+    .event-info p     { font-size:.8rem; color:var(--text-muted); }
+
+    @media(max-width:640px) {
+      .stats-strip { grid-template-columns:repeat(2,1fr); }
+      .home-hero h1 { font-size:1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="/home.html" class="nav-brand">
+    <div class="nav-logo-circle">AM</div>
+    <div class="nav-brand-info">
+      <span class="nav-brand-name">AMSAM</span>
+      <span class="nav-brand-sub">AIIMS Mangalagiri</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="/home.html"      class="nav-link active" id="navHome">Home</a></li>
+    <li><a href="/dashboard.html" class="nav-link" id="navDash">Dashboard</a></li>
+    <li><a href="/profile.html"   class="nav-link" id="navProfile">My Profile</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="nav-user">
+      <div class="nav-avatar" id="navAvatar"></div>
+      <span id="navName"></span>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap">
+  <div class="marquee-inner" id="marqueeInner">
+    <span>🏥 Welcome to AMSAM Portal — AIIMS Mangalagiri</span>
+    <span>📋 Check Events &amp; Upcoming Activities</span>
+    <span>📝 View Minutes of Meetings</span>
+    <span>🪪 Download Your Membership Card</span>
+    <span>🏥 Welcome to AMSAM Portal — AIIMS Mangalagiri</span>
+    <span>📋 Check Events &amp; Upcoming Activities</span>
+    <span>📝 View Minutes of Meetings</span>
+    <span>🪪 Download Your Membership Card</span>
+  </div>
+</div>
+
+<main>
+  <!-- Hero -->
+  <div class="home-hero">
+    <h1>Welcome back, <span id="heroName">…</span>! 👋</h1>
+    <p>Your AMSAM membership portal — events, meeting minutes, and your digital membership card.</p>
+  </div>
+
+  <div class="page-wrap">
+    <!-- Quick Nav Cards -->
+    <div class="nav-cards animate-in">
+      <a href="/dashboard.html" class="nav-card">
+        <div class="nav-card-icon icon-teal">📅</div>
+        <h3>Events</h3>
+        <p>View upcoming and past AMSAM events</p>
+      </a>
+      <a href="/dashboard.html?tab=mom" class="nav-card">
+        <div class="nav-card-icon icon-navy">📝</div>
+        <h3>Minutes of Meeting</h3>
+        <p>Read general body &amp; committee MOM records</p>
+      </a>
+      <a href="/profile.html" class="nav-card">
+        <div class="nav-card-icon icon-gold">🪪</div>
+        <h3>Membership Card</h3>
+        <p>View and download your QR membership card</p>
+      </a>
+      <a href="/profile.html#changePassword" class="nav-card">
+        <div class="nav-card-icon icon-teal">🔒</div>
+        <h3>Change Password</h3>
+        <p>Update your account password anytime</p>
+      </a>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="section-header mt-3 mb-2">
+      <h2 class="section-title">Upcoming Events</h2>
+      <a href="/dashboard.html" class="btn btn-secondary btn-sm">View All →</a>
+    </div>
+    <div id="upcomingEvents">
+      <div class="page-loader"><div class="spinner"></div><span>Loading events…</span></div>
+    </div>
+  </div>
+</main>
+
+<!-- Stats Strip -->
+<div class="stats-strip" id="statsStrip">
+  <div class="stat-item"><div class="stat-num" id="statEvents">–</div><div class="stat-lbl">Total Events</div></div>
+  <div class="stat-item"><div class="stat-num" id="statMOM">–</div><div class="stat-lbl">MOM Records</div></div>
+  <div class="stat-item"><div class="stat-num" id="statMembers">–</div><div class="stat-lbl">Members</div></div>
+  <div class="stat-item"><div class="stat-num">2025</div><div class="stat-lbl">Academic Year</div></div>
+</div>
+
+<footer class="footer">
+  <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri. Designed by IT Club.</p>
+</footer>
+
+<script src="/js/auth.js"></script>
+<script src="/js/home.js"></script>
+</body>
+</html>

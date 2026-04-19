@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Admin Panel — AMSAM Portal</title>
+  <meta name="description" content="AMSAM Admin Panel — manage students, events, MOM and scan QR codes."/>
+  <link rel="stylesheet" href="/css/global.css"/>
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+    main { flex:1; }
+
+    .admin-tabs { background:var(--navy); display:flex; gap:0; overflow-x:auto; }
+    .admin-tab {
+      padding:.85rem 1.5rem; border:none; background:none; cursor:pointer;
+      color:rgba(255,255,255,.6); font-family:'Inter',sans-serif; font-size:.88rem;
+      font-weight:500; border-bottom:3px solid transparent; transition:var(--transition);
+      white-space:nowrap; display:flex; align-items:center; gap:.4rem;
+    }
+    .admin-tab:hover  { color:#fff; background:rgba(255,255,255,.05); }
+    .admin-tab.active { color:#fff; border-bottom-color:var(--gold); font-weight:600; }
+    .admin-tab.super-only { position:relative; }
+    .admin-tab.super-only.locked { opacity:.5; cursor:not-allowed; }
+    .admin-tab.super-only.locked::after { content:'🔒'; font-size:.7rem; }
+
+    /* Panel content */
+    .tab-panel { display:none; animation:fadeIn .2s ease; }
+    .tab-panel.active { display:block; }
+
+    /* Student table */
+    .student-avatar { width:38px; height:38px; border-radius:50%; object-fit:cover; background:var(--teal-pale); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.78rem; color:var(--teal-dark); flex-shrink:0; overflow:hidden; }
+    .student-avatar img { width:100%; height:100%; object-fit:cover; }
+    .student-name-cell { display:flex; align-items:center; gap:.75rem; }
+
+    /* Event / MOM form rows */
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+    /* QR Scanner */
+    .scanner-wrap { max-width:500px; margin:0 auto; text-align:center; }
+    .scanner-video-wrap {
+      position:relative; border-radius:var(--radius-md); overflow:hidden;
+      background:#000; aspect-ratio:4/3; margin:1.25rem 0;
+      border:3px solid var(--teal);
+    }
+    #qrVideo { width:100%; height:100%; object-fit:cover; display:block; }
+    .scanner-overlay {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;
+    }
+    .scanner-frame {
+      width:180px; height:180px; border:3px solid var(--gold);
+      border-radius:var(--radius-sm); box-shadow:0 0 0 9999px rgba(0,0,0,.4);
+      animation:scanPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes scanPulse { 0%,100%{border-color:var(--gold);} 50%{border-color:var(--teal-light);} }
+
+    .scan-result {
+      background:var(--white); border-radius:var(--radius-md);
+      border:1px solid var(--border-light); box-shadow:var(--shadow-md);
+      padding:1.5rem; margin-top:1rem; text-align:left; display:none;
+    }
+    .scan-result.show { display:block; animation:slideUp .3s ease; }
+    .scan-result-photo { width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--teal); margin:0 auto 1rem; display:block; }
+    .scan-result-initials { width:80px; height:80px; border-radius:50%; background:var(--teal); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; margin:0 auto 1rem; }
+    .scan-row { display:flex; gap:.5rem; padding:.4rem 0; border-bottom:1px solid var(--border-light); font-size:.88rem; }
+    .scan-row:last-child { border-bottom:none; }
+    .scan-key { font-weight:600; color:var(--navy); min-width:120px; }
+    .scan-val { color:var(--text-secondary); }
+    .verified-badge { background:#F0FDF4; border:1px solid #86EFAC; color:#166534; border-radius:var(--radius-sm); padding:.5rem 1rem; font-size:.85rem; font-weight:600; text-align:center; margin-bottom:1rem; }
+
+    /* Modals */
+    .modal { max-width:580px; }
+    .photo-preview { width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid var(--border); display:none; }
+
+    @media(max-width:640px) { .form-row { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="/admin.html" class="nav-brand">
+    <div class="nav-logo-circle">AM</div>
+    <div class="nav-brand-info">
+      <span class="nav-brand-name">AMSAM</span>
+      <span class="nav-brand-sub">AIIMS Mangalagiri</span>
+    </div>
+  </a>
+  <div class="nav-right">
+    <div class="nav-user">
+      <div class="nav-avatar" id="navAvatar"></div>
+      <span id="navName"></span>
+      <span class="badge badge-admin" id="roleBadge" style="margin-left:.25rem;"></span>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<!-- Admin Tab Bar -->
+<div class="admin-tabs" id="adminTabs">
+  <button class="admin-tab active"    onclick="switchAdminTab('students')" id="tabStudents">👥 Students</button>
+  <button class="admin-tab"           onclick="switchAdminTab('events')"   id="tabEvents">📅 Events</button>
+  <button class="admin-tab"           onclick="switchAdminTab('mom')"      id="tabMOM">📝 MOM</button>
+  <button class="admin-tab"           onclick="switchAdminTab('scanner')"  id="tabScanner">📷 QR Scanner</button>
+</div>
+
+<main>
+  <div class="page-wrap">
+
+    <!-- ── STUDENTS ── -->
+    <div class="tab-panel active" id="panelStudents">
+      <div class="section-header mb-2">
+        <h2 class="section-title">Manage Students</h2>
+        <button class="btn btn-primary btn-sm" id="addStudentBtn" onclick="openStudentModal()">+ Add Student</button>
+      </div>
+      <div id="studentsTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
+    </div>
+
+    <!-- ── EVENTS ── -->
+    <div class="tab-panel" id="panelEvents">
+      <div class="section-header mb-2">
+        <h2 class="section-title">Manage Events</h2>
+        <button class="btn btn-primary btn-sm" onclick="openEventModal()">+ Add Event</button>
+      </div>
+      <div id="eventsTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
+    </div>
+
+    <!-- ── MOM ── -->
+    <div class="tab-panel" id="panelMOM">
+      <div class="section-header mb-2">
+        <h2 class="section-title">Manage Minutes of Meeting</h2>
+        <button class="btn btn-primary btn-sm" onclick="openMOMModal()">+ Add MOM</button>
+      </div>
+      <div id="momTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
+    </div>
+
+    <!-- ── QR SCANNER ── -->
+    <div class="tab-panel" id="panelScanner">
+      <div class="scanner-wrap animate-in">
+        <h2 class="section-title mb-1" style="text-align:center;">📷 QR Code Scanner</h2>
+        <p class="text-muted" style="text-align:center;margin-bottom:1rem;">Point camera at a student's membership QR code to verify their identity.</p>
+
+        <button class="btn btn-primary btn-lg w-full" id="startScanBtn" onclick="startScanner()">Open Camera</button>
+
+        <div class="scanner-video-wrap" id="videoWrap" style="display:none;">
+          <video id="qrVideo" autoplay playsinline muted></video>
+          <div class="scanner-overlay"><div class="scanner-frame"></div></div>
+        </div>
+        <button class="btn btn-secondary w-full" id="stopScanBtn" style="display:none;" onclick="stopScanner()">Stop Camera</button>
+        <p class="text-muted mt-1" id="scanStatus" style="font-size:.8rem;text-align:center;"></p>
+
+        <div class="scan-result" id="scanResult">
+          <div class="verified-badge">✅ AMSAM Member Verified</div>
+          <div id="scanResultPhoto"></div>
+          <div id="scanResultInfo"></div>
+          <button class="btn btn-secondary btn-sm w-full mt-2" onclick="clearScanResult()">Scan Another</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <p>© 2025 <strong>AMSAM</strong> — Admin Panel. Association of Medical Students, AIIMS Mangalagiri.</p>
+</footer>
+
+<!-- ── STUDENT MODAL ── -->
+<div class="modal-overlay" id="studentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="studentModalTitle">Add Student</h3>
+      <button class="modal-close" onclick="closeModal('studentModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="studentId"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="sName" class="form-control" placeholder="e.g. Arjun Sharma"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">College ID *</label>
+          <input type="text" id="sCollegeId" class="form-control" placeholder="e.g. MBBS2024001"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <input type="email" id="sEmail" class="form-control" placeholder="student@aiims.edu.in"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <input type="password" id="sPassword" class="form-control" placeholder="Min 6 characters"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Batch / Year</label>
+          <input type="text" id="sBatch" class="form-control" placeholder="e.g. 2024"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input type="text" id="sDept" class="form-control" placeholder="e.g. MBBS"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="tel" id="sPhone" class="form-control" placeholder="10-digit mobile number"/>
+      </div>
+      <div class="form-group" id="photoGroup">
+        <label class="form-label">Profile Photo</label>
+        <input type="file" id="sPhoto" class="form-control" accept="image/*" onchange="previewPhoto(this)"/>
+        <img id="photoPreview" class="photo-preview mt-1"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveStudentBtn" onclick="saveStudent()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RESET PASSWORD MODAL ── -->
+<div class="modal-overlay" id="resetPwModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Reset Student Password</h3>
+      <button class="modal-close" onclick="closeModal('resetPwModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted mb-2" id="resetPwName"></p>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" id="resetPwVal" class="form-control" placeholder="Min 6 characters"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('resetPwModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doResetPassword()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EVENT MODAL ── -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="eventModalTitle">Add Event</h3>
+      <button class="modal-close" onclick="closeModal('eventModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="eventId"/>
+      <div class="form-group">
+        <label class="form-label">Event Title *</label>
+        <input type="text" id="evTitle" class="form-control" placeholder="e.g. Annual Medical Symposium"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" id="evDate" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time</label>
+          <input type="text" id="evTime" class="form-control" placeholder="e.g. 09:00 AM"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Venue</label>
+        <input type="text" id="evVenue" class="form-control" placeholder="e.g. Main Auditorium"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="evDesc" class="form-control" rows="3" placeholder="Event details…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('eventModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MOM MODAL ── -->
+<div class="modal-overlay" id="momModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="momModalTitle">Add MOM</h3>
+      <button class="modal-close" onclick="closeModal('momModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="momId"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Meeting Title *</label>
+          <input type="text" id="momTitle" class="form-control" placeholder="e.g. General Body Meeting"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" id="momDate" class="form-control"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Attendees (comma separated)</label>
+        <input type="text" id="momAttendees" class="form-control" placeholder="e.g. Dr. Kumar, Arjun Sharma, …"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Agenda</label>
+        <textarea id="momAgenda" class="form-control" rows="2" placeholder="Topics discussed…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Meeting Notes</label>
+        <textarea id="momNotes" class="form-control" rows="3" placeholder="Summary of the meeting…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Action Items (one per line)</label>
+        <textarea id="momActions" class="form-control" rows="3" placeholder="Task 1&#10;Task 2&#10;Task 3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('momModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMOM()">Save MOM</button>
+    </div>
+  </div>
+</div>
+
+<!-- jsQR for QR scanning -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

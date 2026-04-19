@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Dashboard — AMSAM Portal</title>
+  <meta name="description" content="AMSAM Dashboard — browse all events and minutes of meetings."/>
+  <link rel="stylesheet" href="/css/global.css"/>
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+    main { flex:1; }
+
+    .event-card {
+      background:var(--white); border-radius:var(--radius-md);
+      border:1px solid var(--border-light); box-shadow:var(--shadow-sm);
+      overflow:hidden; transition:var(--transition);
+    }
+    .event-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-md); }
+    .event-card-top {
+      background:linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      color:#fff; padding:1.2rem 1.4rem;
+      display:flex; align-items:center; gap:1rem;
+    }
+    .event-day-box {
+      background:rgba(255,255,255,.15); border-radius:var(--radius-sm);
+      padding:.4rem .8rem; text-align:center; flex-shrink:0; min-width:52px;
+    }
+    .event-day   { font-size:1.5rem; font-weight:800; line-height:1; }
+    .event-month { font-size:.65rem; opacity:.8; }
+    .event-card-title { font-size:1rem; font-weight:700; }
+    .event-card-venue { font-size:.78rem; opacity:.75; margin-top:.2rem; }
+    .event-card-body  { padding:1.2rem 1.4rem; }
+    .event-card-desc  { font-size:.87rem; color:var(--text-secondary); line-height:1.6; }
+    .event-meta {
+      display:flex; gap:1rem; flex-wrap:wrap; margin-top:.75rem;
+      padding-top:.75rem; border-top:1px solid var(--border-light);
+    }
+    .event-meta-item { font-size:.78rem; color:var(--text-muted); display:flex; align-items:center; gap:.3rem; }
+
+    /* MOM cards */
+    .mom-card {
+      background:var(--white); border-radius:var(--radius-md);
+      border:1px solid var(--border-light); box-shadow:var(--shadow-sm);
+      overflow:hidden; transition:var(--transition);
+    }
+    .mom-card:hover { box-shadow:var(--shadow-md); }
+    .mom-card-header {
+      background:linear-gradient(135deg, #2d3561 0%, #1A2040 100%);
+      color:#fff; padding:1.1rem 1.4rem;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .mom-card-title { font-size:.95rem; font-weight:700; }
+    .mom-date-badge {
+      background:rgba(255,255,255,.15); border-radius:var(--radius-pill);
+      padding:.25rem .75rem; font-size:.75rem;
+    }
+    .mom-card-body  { padding:1.2rem 1.4rem; }
+    .mom-section    { margin-bottom:1rem; }
+    .mom-section-label { font-size:.72rem; font-weight:600; color:var(--teal); text-transform:uppercase; letter-spacing:.08em; margin-bottom:.3rem; }
+    .mom-section-text  { font-size:.87rem; color:var(--text-secondary); line-height:1.6; }
+    .mom-attendees { display:flex; flex-wrap:wrap; gap:.35rem; }
+    .attendee-chip {
+      background:var(--cream-dark); border-radius:var(--radius-pill);
+      padding:.2rem .65rem; font-size:.75rem; color:var(--navy);
+    }
+    .action-item {
+      display:flex; align-items:flex-start; gap:.5rem;
+      padding:.4rem 0; border-bottom:1px dashed var(--border-light); font-size:.85rem;
+    }
+    .action-item:last-child { border-bottom:none; }
+    .action-bullet { color:var(--teal); font-weight:700; flex-shrink:0; }
+
+    .events-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:1.25rem; }
+    .mom-list    { display:flex; flex-direction:column; gap:1.25rem; }
+
+    .filter-bar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; margin-bottom:1.5rem; }
+    .search-input { flex:1; min-width:200px; max-width:320px; }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="/home.html" class="nav-brand">
+    <div class="nav-logo-circle">AM</div>
+    <div class="nav-brand-info">
+      <span class="nav-brand-name">AMSAM</span>
+      <span class="nav-brand-sub">AIIMS Mangalagiri</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="/home.html"      class="nav-link">Home</a></li>
+    <li><a href="/dashboard.html" class="nav-link active">Dashboard</a></li>
+    <li><a href="/profile.html"   class="nav-link">My Profile</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="nav-user">
+      <div class="nav-avatar" id="navAvatar"></div>
+      <span id="navName"></span>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <h1>Dashboard</h1>
+  <p>Browse all AMSAM events and minutes of meetings</p>
+</div>
+
+<main>
+  <div class="page-wrap">
+    <!-- Tabs -->
+    <div class="tabs mb-3" id="dashTabs">
+      <button class="tab-btn active" onclick="switchTab('events')" id="tabEvents">📅 Events</button>
+      <button class="tab-btn"        onclick="switchTab('mom')"    id="tabMOM">📝 Minutes of Meeting</button>
+    </div>
+
+    <!-- Events Panel -->
+    <div class="tab-panel active" id="panelEvents">
+      <div class="filter-bar">
+        <input type="text" class="form-control search-input" id="eventSearch" placeholder="🔍 Search events…" oninput="renderEvents()"/>
+      </div>
+      <div id="eventsGrid" class="events-grid">
+        <div class="page-loader"><div class="spinner"></div><span>Loading events…</span></div>
+      </div>
+    </div>
+
+    <!-- MOM Panel -->
+    <div class="tab-panel" id="panelMOM">
+      <div class="filter-bar">
+        <input type="text" class="form-control search-input" id="momSearch" placeholder="🔍 Search MOM…" oninput="renderMOMs()"/>
+      </div>
+      <div id="momList" class="mom-list">
+        <div class="page-loader"><div class="spinner"></div><span>Loading MOM records…</span></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri.</p>
+</footer>
+
+<script src="/js/auth.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
