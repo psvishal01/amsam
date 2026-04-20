@@ -9,10 +9,12 @@ if (badge) {
   badge.className   = `badge ${adminUser?.role === 'super_admin' ? 'badge-admin' : 'badge-subadmin'}`;
 }
 
-// Lock "Add Student" button for sub-admins
+// Lock "Add Student" and "Import Excel" buttons for sub-admins
 if (!isSuperAdmin()) {
   const btn = document.getElementById('addStudentBtn');
   if (btn) { btn.disabled = true; btn.title = 'Only Super Admin can create students'; }
+  const impBtn = document.getElementById('importExcelBtn');
+  if (impBtn) { impBtn.disabled = true; impBtn.title = 'Only Super Admin can import students'; }
 }
 
 // ── Tab switching ──────────────────────────────────────────────
@@ -27,13 +29,28 @@ function switchAdminTab(tab) {
   if (tab === 'scanner')  stopScanner();
 }
 
-// ── Modal helpers ──────────────────────────────────────────────
+// ── Modal & Dropdown helpers ───────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   stopScanner();
 }
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
+
+function toggleDropdown(e, id) {
+  e.stopPropagation();
+  // Close all others
+  document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+    if (m.id !== `dropdown-${id}`) m.classList.remove('show');
+  });
+  const menu = document.getElementById(`dropdown-${id}`);
+  if (menu) menu.classList.toggle('show');
+}
+
+// Close dropdowns when clicking outside
+window.addEventListener('click', () => {
+  document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+});
 
 // ── STUDENTS ───────────────────────────────────────────────────
 let students = [];
@@ -57,7 +74,7 @@ function renderStudentsTable() {
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Student</th><th>College ID</th><th>Email</th><th>Dept / Batch</th><th>Role</th>
+          <th>Student</th><th>College ID</th><th>Email</th><th>Dept / Batch</th><th>Payment</th><th>Role</th>
           ${superAdmin ? '<th>Actions</th>' : ''}
         </tr></thead>
         <tbody>
@@ -72,18 +89,30 @@ function renderStudentsTable() {
             <td style="font-size:.83rem">${s.email}</td>
             <td style="font-size:.83rem">${s.department||'—'} / ${s.batch||'—'}</td>
             <td>
+              <span class="badge ${s.is_paid ? 'badge-paid' : 'badge-unpaid'}">
+                ${s.is_paid ? '✅ Paid' : '⏳ Unpaid'}
+              </span>
+            </td>
+            <td>
               <span class="badge ${s.role==='sub_admin'?'badge-subadmin':'badge-student'}">
                 ${s.role==='sub_admin'?'🛡️ Sub Admin':'👤 Student'}
               </span>
             </td>
             ${superAdmin ? `<td>
-              <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-                <button class="btn btn-secondary btn-sm" onclick="editStudent(${s.id})">✏️</button>
-                <button class="btn btn-warning btn-sm" onclick="openResetPw(${s.id},'${s.name.replace(/'/g,"\\'")}')">🔑</button>
-                <button class="btn ${s.role==='sub_admin'?'btn-secondary':'btn-success'} btn-sm" onclick="toggleRole(${s.id},'${s.role}')">
-                  ${s.role==='sub_admin'?'⬇️ Demote':'⬆️ Promote'}
-                </button>
-                <button class="btn btn-danger btn-sm" onclick="deleteStudent(${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑️</button>
+              <div class="action-dropdown">
+                <button class="btn btn-secondary btn-sm" onclick="toggleDropdown(event, ${s.id})">⚙️ Actions</button>
+                <div class="dropdown-menu" id="dropdown-${s.id}">
+                  <button class="dropdown-item" onclick="editStudent(${s.id})">✏️ Edit Profile</button>
+                  <button class="dropdown-item" onclick="openResetPw(${s.id},'${s.name.replace(/'/g,"\\'")}')">🔑 Reset Password</button>
+                  <button class="dropdown-item" onclick="togglePayment(${s.id},${s.is_paid ? 1 : 0},'${s.name.replace(/'/g,"\\'")}')">
+                    ${s.is_paid ? '❌ Mark Unpaid' : '💳 Mark Paid'}
+                  </button>
+                  <button class="dropdown-item" onclick="toggleRole(${s.id},'${s.role}')">
+                    ${s.role==='sub_admin'?'⬇️ Demote to Student':'⬆️ Promote to Sub-Admin'}
+                  </button>
+                  <div class="dropdown-divider"></div>
+                  <button class="dropdown-item text-danger" onclick="deleteStudent(${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑️ Delete Account</button>
+                </div>
               </div>
             </td>` : ''}
           </tr>`).join('')}
@@ -181,6 +210,17 @@ async function toggleRole(id, currentRole) {
   try {
     await apiFetch(`/api/users/${id}/role`, { method:'PUT', body:JSON.stringify({role:newRole}) });
     showToast(`User ${newRole === 'sub_admin' ? 'promoted to Sub-Admin' : 'demoted to Student'}!`, 'success');
+    loadStudents();
+  } catch(e) { showToast('Error: '+e.message, 'error'); }
+}
+
+async function togglePayment(id, currentPaid, name) {
+  const markPaid = !currentPaid;
+  const action   = markPaid ? `mark "${name}" as PAID` : `mark "${name}" as UNPAID`;
+  if (!confirm(`Are you sure you want to ${action}?`)) return;
+  try {
+    await apiFetch(`/api/users/${id}/payment`, { method:'PUT', body:JSON.stringify({ is_paid: markPaid }) });
+    showToast(markPaid ? `✅ ${name} marked as paid!` : `⏳ ${name} marked as unpaid.`, markPaid ? 'success' : 'info');
     loadStudents();
   } catch(e) { showToast('Error: '+e.message, 'error'); }
 }
@@ -433,7 +473,13 @@ async function showScanResult(userId) {
       ? `<img src="${student.photo_path}" class="scan-result-photo" alt="${student.name}"/>`
       : `<div class="scan-result-initials">${student.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`;
     document.getElementById('scanResultPhoto').innerHTML = photoHTML;
+
+    const paymentBadge = student.is_paid
+      ? `<div class="verified-badge" style="background:#F0FDF4;border-color:#86EFAC;color:#166534;">💳 MEMBERSHIP FEE PAID${student.paid_at ? ' · ' + new Date(student.paid_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : ''}</div>`
+      : `<div class="verified-badge" style="background:#FEF2F2;border-color:#FECACA;color:#991B1B;">❌ PAYMENT PENDING — Membership fee not paid</div>`;
+
     document.getElementById('scanResultInfo').innerHTML = `
+      ${paymentBadge}
       <div class="scan-row"><span class="scan-key">Full Name</span><span class="scan-val">${student.name}</span></div>
       <div class="scan-row"><span class="scan-key">College ID</span><span class="scan-val">${student.college_id}</span></div>
       <div class="scan-row"><span class="scan-key">Email</span><span class="scan-val">${student.email}</span></div>
@@ -455,3 +501,108 @@ function clearScanResult() {
 
 // ── Init ───────────────────────────────────────────────────────
 loadStudents();
+
+// ── BULK IMPORT ────────────────────────────────────────────────
+let importFile = null;
+
+function openImportModal() {
+  if (!isSuperAdmin()) return showToast('Only Super Admin can import students', 'error');
+  importFile = null;
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importFileName').textContent = '';
+  document.getElementById('importResult').classList.remove('show');
+  document.getElementById('importSubmitBtn').disabled = true;
+  openModal('importModal');
+}
+
+// Drag-and-drop on drop zone
+const dropZone = document.getElementById('importDropZone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) setImportFile(file);
+  });
+}
+
+function handleImportFileInput(input) {
+  if (input.files[0]) setImportFile(input.files[0]);
+}
+
+function setImportFile(file) {
+  const validExts = /\.(xlsx|xls|csv)$/i;
+  if (!validExts.test(file.name)) {
+    showToast('Only .xlsx, .xls or .csv files are allowed', 'error');
+    return;
+  }
+  importFile = file;
+  document.getElementById('importFileName').textContent = '📎 ' + file.name;
+  document.getElementById('importResult').classList.remove('show');
+  document.getElementById('importSubmitBtn').disabled = false;
+}
+
+async function downloadTemplate(e) {
+  e.preventDefault();
+  try {
+    const resp = await fetch('/api/users/import-template', {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    if (!resp.ok) throw new Error('Failed to download template');
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'amsam_students_template.xlsx';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function submitImport() {
+  if (!importFile) return showToast('Please select a file first', 'error');
+  const btn = document.getElementById('importSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Importing…';
+
+  const fd = new FormData();
+  fd.append('file', importFile);
+
+  try {
+    const resp = await fetch('/api/users/bulk-import', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getToken()}` },
+      body: fd
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Import failed');
+
+    // Show stats
+    document.getElementById('impStatImported').textContent = data.imported;
+    document.getElementById('impStatSkipped').textContent  = data.skipped.length;
+    document.getElementById('impStatTotal').textContent    = data.total;
+
+    // Build skip list
+    const skipList = document.getElementById('importSkipList');
+    if (data.skipped.length) {
+      skipList.innerHTML = data.skipped.map(s =>
+        `<div class="import-skip-item">Row ${s.row}: <strong>${s.data.name || s.data.email || 'Unknown'}</strong> — ${s.reason}</div>`
+      ).join('');
+    } else {
+      skipList.innerHTML = '';
+    }
+
+    document.getElementById('importResult').classList.add('show');
+    showToast(`✅ ${data.imported} student${data.imported !== 1 ? 's' : ''} imported!`, 'success');
+
+    // Refresh students table
+    if (data.imported > 0) loadStudents();
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Import';
+  }
+}

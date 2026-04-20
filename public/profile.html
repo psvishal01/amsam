@@ -84,6 +84,18 @@
     .pw-status.success { background:#F0FDF4; border:1px solid #86EFAC; color:#166534; display:block; }
     .pw-status.error   { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; display:block; }
 
+    /* Payment status */
+    .payment-pending-box {
+      background:#FFFBEB; border:2px dashed #FCD34D;
+      border-radius:var(--radius-md); padding:1.75rem 1.25rem;
+      text-align:center; width:100%; box-sizing:border-box;
+    }
+    .payment-pending-box .lock-icon { font-size:2.2rem; margin-bottom:.5rem; }
+    .payment-pending-box h4 { color:#92400E; font-size:.95rem; margin-bottom:.3rem; }
+    .payment-pending-box p  { color:#B45309; font-size:.78rem; margin:0; }
+    .badge-paid   { background:#D1FAE5; color:#065F46; border:1px solid #6EE7B7; }
+    .badge-unpaid { background:#FEF3C7; color:#92400E; border:1px solid #FCD34D; }
+
     @media(max-width:900px) { .profile-layout { grid-template-columns:1fr; } }
   </style>
 </head>

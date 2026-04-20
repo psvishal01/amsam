@@ -52,7 +52,7 @@ router.post('/change-password', authenticate, (req, res) => {
 
 // GET /api/auth/me  (authenticated) — fetch own profile
 router.get('/me', authenticate, (req, res) => {
-  const user = db.prepare('SELECT id, name, college_id, email, photo_path, role, batch, department, phone, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, created_at FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
 });

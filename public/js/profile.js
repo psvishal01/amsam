@@ -45,12 +45,24 @@ async function loadProfile() {
           <div><div class="info-label">Role</div><div class="info-value"><span class="badge badge-student">Student Member</span></div></div>
         </div>
         <div class="profile-info-row">
+          <span class="info-icon">💳</span>
+          <div>
+            <div class="info-label">Membership Fee</div>
+            <div class="info-value">
+              <span class="badge ${profile.is_paid ? 'badge-paid' : 'badge-unpaid'}">
+                ${profile.is_paid ? '✅ Paid' : '⏳ Payment Pending'}
+              </span>
+              ${profile.is_paid && profile.paid_at ? `<span style="font-size:.72rem;color:var(--text-muted);margin-left:.4rem;">on ${new Date(profile.paid_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="profile-info-row">
           <span class="info-icon">🗓️</span>
           <div><div class="info-label">Member Since</div><div class="info-value">${new Date(profile.created_at).toLocaleDateString('en-IN',{year:'numeric',month:'long',day:'numeric'})}</div></div>
         </div>
       </div>`;
 
-    // Populate membership card
+    // Populate membership card info
     document.getElementById('mcName').textContent    = profile.name;
     document.getElementById('mcCollegeId').innerHTML = `🎓 ${profile.college_id}`;
     document.getElementById('mcDept').innerHTML      = `🏥 ${profile.department || 'MBBS'}`;
@@ -58,9 +70,40 @@ async function loadProfile() {
     document.getElementById('mcEmail').innerHTML     = `✉️ ${profile.email}`;
     document.getElementById('mcSince').textContent   = `Member since ${new Date(profile.created_at).toLocaleDateString('en-IN',{year:'numeric',month:'short'})}`;
 
-    // Load QR code
-    const qrData = await apiFetch(`/api/verify/${profile.id}/qr`);
-    document.getElementById('mcQR').innerHTML = `<img src="${qrData.qr}" alt="QR Code" style="width:100px;height:100px;"/>`;
+    // Update membership card badge
+    const mcBadgeEl = document.querySelector('.mc-badge');
+    if (mcBadgeEl) {
+      if (profile.is_paid) {
+        mcBadgeEl.textContent = '✅ Paid Member';
+        mcBadgeEl.style.background   = 'rgba(16,185,129,.25)';
+        mcBadgeEl.style.borderColor  = 'rgba(16,185,129,.5)';
+      } else {
+        mcBadgeEl.textContent = '⏳ Pending';
+        mcBadgeEl.style.background   = 'rgba(245,158,11,.25)';
+        mcBadgeEl.style.borderColor  = 'rgba(245,158,11,.5)';
+      }
+    }
+
+    // Load QR code only if student has paid
+    if (profile.is_paid) {
+      try {
+        const qrData = await apiFetch(`/api/verify/${profile.id}/qr`);
+        document.getElementById('mcQR').innerHTML = `<img src="${qrData.qr}" alt="QR Code" style="width:100px;height:100px;"/>`;
+      } catch(qrErr) {
+        document.getElementById('mcQR').innerHTML = `<div style="width:100px;height:100px;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#999;text-align:center;">QR Error</div>`;
+      }
+      const dlBtn = document.getElementById('dlBtn');
+      if (dlBtn) dlBtn.style.display = 'inline-flex';
+    } else {
+      // Unpaid: show a lock placeholder instead of QR
+      document.getElementById('mcQR').innerHTML = `
+        <div style="width:100px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:6px;">
+          <span style="font-size:1.8rem;">🔒</span>
+          <span style="font-size:.55rem;color:rgba(255,255,255,.6);margin-top:.25rem;text-align:center;line-height:1.3;">Fee not<br>paid</span>
+        </div>`;
+      const dlBtn = document.getElementById('dlBtn');
+      if (dlBtn) dlBtn.style.display = 'none';
+    }
 
     // Update nav avatar with fresh photo
     renderNavAvatar(profile);

@@ -20,6 +20,8 @@ db.exec(`
     batch         TEXT    DEFAULT NULL,
     department    TEXT    DEFAULT NULL,
     phone         TEXT    DEFAULT NULL,
+    is_paid       INTEGER NOT NULL DEFAULT 0,
+    paid_at       DATETIME DEFAULT NULL,
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -46,6 +48,10 @@ db.exec(`
     created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// ── Migrate existing DB: add is_paid / paid_at if missing ──────
+try { db.exec(`ALTER TABLE users ADD COLUMN is_paid INTEGER NOT NULL DEFAULT 0`); } catch(e) { /* column already exists */ }
+try { db.exec(`ALTER TABLE users ADD COLUMN paid_at DATETIME DEFAULT NULL`);       } catch(e) { /* column already exists */ }
 
 // ── Seed Data (runs only once) ─────────────────────────────────
 const alreadySeeded = db.prepare("SELECT COUNT(*) as c FROM users").get().c > 0;

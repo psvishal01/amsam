@@ -1,10 +1,11 @@
 const router = require('express').Router();
 const path = require('path');
 const multer = require('multer');
+const XLSX = require('xlsx');
 const db = require('../db');
 const { authenticate, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 
-// Multer config for profile photos
+// Multer config for profile photos (disk storage)
 const storage = multer.diskStorage({
   destination: path.join(__dirname, '../uploads'),
   filename: (req, file, cb) => {
@@ -21,10 +22,21 @@ const upload = multer({
   }
 });
 
+// Multer config for spreadsheet uploads (memory storage — no temp files)
+const memUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(xlsx|xls|csv)$/i.test(file.originalname);
+    if (ok) cb(null, true);
+    else cb(new Error('Only .xlsx, .xls or .csv files are allowed'));
+  }
+});
+
 // GET /api/users — all users (admin only)
 router.get('/', authenticate, requireAdmin, (req, res) => {
   const users = db.prepare(
-    'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, created_at FROM users ORDER BY created_at DESC'
+    'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, created_at FROM users ORDER BY created_at DESC'
   ).all();
   res.json(users);
 });
@@ -36,7 +48,7 @@ router.get('/:id', authenticate, (req, res) => {
   if (!isAdmin && !isSelf) return res.status(403).json({ error: 'Access denied' });
 
   const user = db.prepare(
-    'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, created_at FROM users WHERE id = ?'
+    'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, created_at FROM users WHERE id = ?'
   ).get(req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
@@ -123,6 +135,140 @@ router.post('/:id/reset-password', authenticate, requireSuperAdmin, (req, res) =
   const hash = bcrypt.hashSync(newPassword, 10);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.params.id);
   res.json({ message: 'Password reset successfully' });
+});
+
+// PUT /api/users/:id/payment — mark student as paid or unpaid (super_admin only)
+router.put('/:id/payment', authenticate, requireSuperAdmin, (req, res) => {
+  const { is_paid } = req.body;
+  if (typeof is_paid !== 'boolean' && is_paid !== 0 && is_paid !== 1) {
+    return res.status(400).json({ error: 'is_paid must be true or false' });
+  }
+  const paid = is_paid ? 1 : 0;
+  const target = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+
+  db.prepare('UPDATE users SET is_paid = ?, paid_at = ? WHERE id = ?')
+    .run(paid, paid ? new Date().toISOString() : null, req.params.id);
+
+  res.json({ message: paid ? 'Student marked as paid' : 'Student marked as unpaid', is_paid: paid });
+});
+
+// GET /api/users/import-template — download a sample .xlsx template
+router.get('/import-template', authenticate, requireSuperAdmin, (req, res) => {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Name', 'College ID', 'Email', 'Password', 'Batch', 'Department', 'Phone'],
+    ['Arjun Sharma', 'MBBS2024001', 'arjun@aiims.edu.in', 'Student@123', '2024', 'MBBS', '9876543210'],
+  ]);
+  // Set column widths
+  ws['!cols'] = [20,16,28,14,10,14,14].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Students');
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Disposition', 'attachment; filename="amsam_students_template.xlsx"');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+});
+
+// POST /api/users/bulk-import — parse spreadsheet and bulk-create students
+router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  let rows;
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+  } catch (e) {
+    return res.status(400).json({ error: 'Failed to parse file: ' + e.message });
+  }
+
+  if (!rows.length) return res.status(400).json({ error: 'The file has no data rows.' });
+
+  const bcrypt = require('bcryptjs');
+
+  // ⚡ Pre-hash the default password ONCE — avoids ~100ms × N redundant hashes
+  const DEFAULT_PASSWORD = 'Student@123';
+  const defaultHash = bcrypt.hashSync(DEFAULT_PASSWORD, 10);
+
+  // Cache for any custom passwords found in the sheet (de-dup identical ones)
+  const customHashCache = new Map();
+  const getHash = (pwd) => {
+    if (!pwd || pwd === DEFAULT_PASSWORD) return defaultHash;
+    if (customHashCache.has(pwd)) return customHashCache.get(pwd);
+    const h = bcrypt.hashSync(pwd, 10);
+    customHashCache.set(pwd, h);
+    return h;
+  };
+
+  const insertStmt = db.prepare(
+    'INSERT INTO users (name, college_id, email, password_hash, role, batch, department, phone) VALUES (?,?,?,?,?,?,?,?)'
+  );
+
+  // ⚡ Validate all rows first, then insert in a single transaction
+  const toInsert = [];
+  const skipped  = [];
+  const imported_ids = [];
+
+  // ── Pass 1: validate & collect rows to insert ──────────────────
+  for (let i = 0; i < rows.length; i++) {
+    const row    = rows[i];
+    const rowNum = i + 2; // 1-indexed + header row
+
+    // Normalize column names (case-insensitive)
+    const get = (keys) => {
+      for (const k of keys) {
+        const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === k.toLowerCase());
+        if (found) return String(row[found]).trim();
+      }
+      return '';
+    };
+
+    const name       = get(['Name', 'Full Name', 'Student Name']);
+    const college_id = get(['College ID', 'CollegeID', 'College Id', 'college_id']);
+    const email      = get(['Email', 'Email Address', 'email']);
+    const password   = get(['Password', 'password']) || DEFAULT_PASSWORD;
+    const batch      = get(['Batch', 'Year', 'batch'])      || null;
+    const department = get(['Department', 'Dept', 'department']) || null;
+    const phone      = get(['Phone', 'Mobile', 'phone'])    || null;
+
+    if (!name || !college_id || !email) {
+      skipped.push({ row: rowNum, reason: 'Missing required field (Name, College ID, or Email)', data: { name, college_id, email } });
+      continue;
+    }
+
+    // Basic email format check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      skipped.push({ row: rowNum, reason: 'Invalid email format', data: { name, college_id, email } });
+      continue;
+    }
+
+    toInsert.push({ rowNum, name, college_id, email: email.toLowerCase(), password, batch, department, phone });
+  }
+
+  // ── Pass 2: insert all valid rows in ONE transaction ───────────
+  // ⚡ A single transaction commits once, making 1000 inserts ~1000× faster.
+  const bulkInsert = db.transaction((records) => {
+    for (const r of records) {
+      try {
+        insertStmt.run(r.name, r.college_id, r.email, getHash(r.password), 'student', r.batch, r.department, r.phone);
+        imported_ids.push(r.rowNum);
+      } catch (e) {
+        skipped.push({
+          row: r.rowNum,
+          reason: e.message.includes('UNIQUE') ? 'Duplicate email or College ID' : e.message,
+          data: { name: r.name, college_id: r.college_id, email: r.email }
+        });
+      }
+    }
+  });
+
+  try {
+    bulkInsert(toInsert);
+  } catch (e) {
+    return res.status(500).json({ error: 'Transaction failed: ' + e.message });
+  }
+
+  res.json({ imported: imported_ids.length, skipped, total: rows.length });
 });
 
 module.exports = router;
