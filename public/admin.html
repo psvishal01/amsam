@@ -141,9 +141,13 @@
 
     <!-- ── STUDENTS ── -->
     <div class="tab-panel active" id="panelStudents">
-      <div class="section-header mb-2">
+      <div class="section-header mb-2" style="align-items:center;">
         <h2 class="section-title">Manage Students</h2>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+          <div style="position:relative;">
+            <span style="position:absolute;left:.6rem;top:50%;transform:translateY(-50%);font-size:.85rem;color:var(--text-muted);">🔍</span>
+            <input type="text" id="studentSearch" class="form-control" placeholder="Search students..." onkeyup="filterStudents()" style="padding-left:1.8rem; padding-top:.4rem; padding-bottom:.4rem; width:220px; font-size:.85rem; margin:0;"/>
+          </div>
           <button class="btn btn-secondary btn-sm" id="importExcelBtn" onclick="openImportModal()">📤 Import Excel</button>
           <button class="btn btn-primary btn-sm" id="addStudentBtn" onclick="openStudentModal()">+ Add Student</button>
         </div>

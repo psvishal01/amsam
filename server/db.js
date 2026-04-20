@@ -65,7 +65,7 @@ if (!alreadySeeded) {
   `);
 
   // Super Admin
-  ins.run('Dr. Admin Kumar',  'ADMIN001',    'admin@amsam.in',                          h('Admin@123'),    'super_admin', '2018', 'Administration',  '9999999999');
+  ins.run('Admin',  'ADMIN001',    'admin@amsam.in',                          h('Admin@123'),    'super_admin', '2018', 'Administration',  '9999999999');
   // Sub Admin
   ins.run('Dr. Meena Pillai', 'SADMIN001',   'subadmin@amsam.in',                       h('SubAdmin@123'), 'sub_admin',   '2019', 'General Medicine', '8888888888');
   // Students

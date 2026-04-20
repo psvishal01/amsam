@@ -64,9 +64,17 @@ async function loadStudents() {
 }
 
 function renderStudentsTable() {
-  const list = students.filter(s => s.role !== 'super_admin');
+  const searchQuery = (document.getElementById('studentSearch')?.value || '').toLowerCase();
+  const list = students.filter(s => {
+    if (s.role === 'super_admin') return false;
+    if (!searchQuery) return true;
+    return s.name.toLowerCase().includes(searchQuery) || 
+           s.college_id.toLowerCase().includes(searchQuery) || 
+           s.email.toLowerCase().includes(searchQuery);
+  });
+
   if (!list.length) {
-    document.getElementById('studentsTable').innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><h3>No students yet</h3><p>Add your first student account.</p></div>';
+    document.getElementById('studentsTable').innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><h3>No students found</h3><p>Try adjusting your search or add a new student.</p></div>';
     return;
   }
   const superAdmin = isSuperAdmin();
@@ -119,6 +127,10 @@ function renderStudentsTable() {
         </tbody>
       </table>
     </div>`;
+}
+
+function filterStudents() {
+  renderStudentsTable();
 }
 
 function openStudentModal(id = null) {
