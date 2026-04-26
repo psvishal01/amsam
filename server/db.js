@@ -32,6 +32,7 @@ db.exec(`
     venue       TEXT,
     event_date  TEXT,
     event_time  TEXT,
+    fee         INTEGER DEFAULT 0,
     created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -47,11 +48,23 @@ db.exec(`
     created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS registrations (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    event_id    INTEGER REFERENCES events(id) ON DELETE CASCADE,
+    qr_code     TEXT UNIQUE NOT NULL,
+    is_paid     INTEGER NOT NULL DEFAULT 0,
+    is_admitted INTEGER NOT NULL DEFAULT 0,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, event_id)
+  );
 `);
 
 // ── Migrate existing DB: add is_paid / paid_at if missing ──────
 try { db.exec(`ALTER TABLE users ADD COLUMN is_paid INTEGER NOT NULL DEFAULT 0`); } catch(e) { /* column already exists */ }
 try { db.exec(`ALTER TABLE users ADD COLUMN paid_at DATETIME DEFAULT NULL`);       } catch(e) { /* column already exists */ }
+try { db.exec(`ALTER TABLE events ADD COLUMN fee INTEGER DEFAULT 0`);              } catch(e) { /* column already exists */ }
 
 // ── Seed Data (runs only once) ─────────────────────────────────
 const alreadySeeded = db.prepare("SELECT COUNT(*) as c FROM users").get().c > 0;

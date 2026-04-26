@@ -112,6 +112,7 @@
     <!-- Tabs -->
     <div class="tabs mb-3" id="dashTabs">
       <button class="tab-btn active" onclick="switchTab('events')" id="tabEvents">📅 Events</button>
+      <button class="tab-btn"        onclick="switchTab('registration')" id="tabRegistration">🎫 Registration</button>
       <button class="tab-btn"        onclick="switchTab('mom')"    id="tabMOM">📝 Minutes of Meeting</button>
     </div>
 
@@ -134,6 +135,16 @@
         <div class="page-loader"><div class="spinner"></div><span>Loading MOM records…</span></div>
       </div>
     </div>
+
+    <!-- Registration Panel -->
+    <div class="tab-panel" id="panelRegistration">
+      <div class="filter-bar">
+        <input type="text" class="form-control search-input" id="regSearch" placeholder="🔍 Search events to register…" oninput="renderRegistrations()"/>
+      </div>
+      <div id="regGrid" class="events-grid">
+        <div class="page-loader"><div class="spinner"></div><span>Loading registration events…</span></div>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -141,6 +152,7 @@
   <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri.</p>
 </footer>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/dashboard.js"></script>
 </body>

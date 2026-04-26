@@ -273,13 +273,14 @@ function renderEventsTable() {
   document.getElementById('eventsTable').innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Title</th><th>Date</th><th>Time</th><th>Venue</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Title</th><th>Date</th><th>Time</th><th>Venue</th><th>Fee</th><th>Actions</th></tr></thead>
         <tbody>
           ${events.map(e => `<tr>
             <td style="font-weight:500;max-width:260px">${e.title}</td>
             <td style="white-space:nowrap">${e.event_date||'—'}</td>
             <td style="white-space:nowrap">${e.event_time||'—'}</td>
             <td style="font-size:.83rem;max-width:200px">${e.venue||'—'}</td>
+            <td style="white-space:nowrap">₹${e.fee||0}</td>
             <td>
               <div style="display:flex;gap:.4rem">
                 <button class="btn btn-secondary btn-sm" onclick="editEvent(${e.id})">✏️ Edit</button>
@@ -295,7 +296,7 @@ function renderEventsTable() {
 function openEventModal(id = null) {
   document.getElementById('eventModalTitle').textContent = id ? 'Edit Event' : 'Add Event';
   document.getElementById('eventId').value = id || '';
-  if (!id) { ['evTitle','evDate','evTime','evVenue','evDesc'].forEach(f => document.getElementById(f).value=''); }
+  if (!id) { ['evTitle','evDate','evTime','evVenue','evDesc','evFee'].forEach(f => { if(document.getElementById(f)) document.getElementById(f).value=''; }); document.getElementById('evFee').value = '0'; }
   else {
     const ev = events.find(x=>x.id===id);
     if (!ev) return;
@@ -304,6 +305,7 @@ function openEventModal(id = null) {
     document.getElementById('evTime').value  = ev.event_time;
     document.getElementById('evVenue').value = ev.venue;
     document.getElementById('evDesc').value  = ev.description;
+    document.getElementById('evFee').value   = ev.fee || 0;
   }
   openModal('eventModal');
 }
@@ -317,7 +319,8 @@ async function saveEvent() {
     title, description: document.getElementById('evDesc').value,
     venue: document.getElementById('evVenue').value,
     event_date: document.getElementById('evDate').value,
-    event_time: document.getElementById('evTime').value
+    event_time: document.getElementById('evTime').value,
+    fee: parseInt(document.getElementById('evFee').value) || 0
   };
   try {
     await apiFetch(id ? `/api/events/${id}` : '/api/events', { method: id ? 'PUT':'POST', body:JSON.stringify(body) });
@@ -453,10 +456,14 @@ async function startScanner() {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts:'dontInvert' });
-      if (code && code.data.startsWith('AMSAM_VERIFY_')) {
-        const parts = code.data.split('_');
-        const userId = parseInt(parts[2]);
-        if (!isNaN(userId)) { stopScanner(); showScanResult(userId); }
+      if (code) {
+        if (code.data.startsWith('AMSAM_VERIFY_')) {
+          const parts = code.data.split('_');
+          const userId = parseInt(parts[2]);
+          if (!isNaN(userId)) { stopScanner(); showScanResult(userId); }
+        } else if (code.data.startsWith('AMSAM_EVENT_')) {
+          stopScanner(); showEventScanResult(code.data);
+        }
       }
     }, 300);
   } catch(e) {
@@ -503,6 +510,50 @@ async function showScanResult(userId) {
   } catch(e) {
     document.getElementById('scanResultPhoto').innerHTML = '';
     document.getElementById('scanResultInfo').innerHTML  = `<p style="color:var(--error)">Failed to load student: ${e.message}</p>`;
+  }
+}
+
+async function showEventScanResult(qrCode) {
+  const resultDiv = document.getElementById('scanResult');
+  resultDiv.classList.add('show');
+  document.getElementById('scanResultPhoto').innerHTML = '<div class="page-loader" style="min-height:60px"><div class="spinner"></div></div>';
+  document.getElementById('scanResultInfo').innerHTML = '';
+  try {
+    const registration = await apiFetch(`/api/registrations/scan`, {
+      method: 'POST',
+      body: JSON.stringify({ qr_code: qrCode })
+    });
+    
+    document.getElementById('scanResultPhoto').innerHTML = `<div class="scan-result-initials">🎫</div>`;
+
+    const admittedBadge = registration.is_admitted
+      ? `<div class="verified-badge" style="background:#FEF2F2;border-color:#FECACA;color:#991B1B;">❌ ALREADY ADMITTED — QR Used</div>`
+      : `<div class="verified-badge" style="background:#F0FDF4;border-color:#86EFAC;color:#166534;">✅ VALID REGISTRATION — Not Admitted Yet</div>`;
+
+    document.getElementById('scanResultInfo').innerHTML = `
+      ${admittedBadge}
+      <div class="scan-row"><span class="scan-key">Event</span><span class="scan-val">${registration.event_title}</span></div>
+      <div class="scan-row"><span class="scan-key">Student Name</span><span class="scan-val">${registration.user_name}</span></div>
+      <div class="scan-row"><span class="scan-key">College ID</span><span class="scan-val">${registration.college_id}</span></div>
+      <div class="scan-row"><span class="scan-key">Payment Status</span><span class="scan-val">${registration.is_paid ? 'Paid' : 'Unpaid'}</span></div>
+      ${!registration.is_admitted ? `<button class="btn btn-primary w-full mt-2" onclick="admitStudent('${qrCode}')">Mark as Admitted</button>` : ''}
+    `;
+  } catch(e) {
+    document.getElementById('scanResultPhoto').innerHTML = '';
+    document.getElementById('scanResultInfo').innerHTML  = `<p style="color:var(--error)">Failed to load registration: ${e.message}</p>`;
+  }
+}
+
+async function admitStudent(qrCode) {
+  try {
+    await apiFetch('/api/registrations/admit', {
+      method: 'POST',
+      body: JSON.stringify({ qr_code: qrCode })
+    });
+    showToast('Student successfully admitted!', 'success');
+    showEventScanResult(qrCode); // refresh result
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
   }
 }
 
