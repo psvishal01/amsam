@@ -1,0 +1,156 @@
+const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
+
+// Create transporter using Gmail (uses App Password from .env)
+function getTransporter() {
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    throw new Error('Mail credentials not configured in .env');
+  }
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
+}
+
+/**
+ * Sends a styled payment receipt email after a successful event registration.
+ * @param {object} opts - { toEmail, studentName, eventTitle, eventDate, eventVenue, amountPaid, paymentId, qrCode }
+ */
+async function sendReceiptEmail(opts) {
+  const { toEmail, studentName, eventTitle, eventDate, eventVenue, amountPaid, paymentId, qrCode } = opts;
+
+  const formattedDate = eventDate
+    ? new Date(eventDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'TBD';
+
+  const formattedAmount = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amountPaid);
+
+  // Generate QR code as a PNG buffer — use CID attachment (works in all email clients incl. Gmail)
+  const qrBuffer = await QRCode.toBuffer(qrCode, {
+    width: 200,
+    margin: 2,
+    color: { dark: '#1A2040', light: '#FFFFFF' }
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Receipt - AMSAM</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#1A2040 0%,#009688 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:1px;">AMSAM</h1>
+              <p style="margin:4px 0 0;color:rgba(255,255,255,0.75);font-size:13px;letter-spacing:2px;text-transform:uppercase;">AIIMS Mangalagiri Student Association of Medicine</p>
+            </td>
+          </tr>
+
+          <!-- Success Badge -->
+          <tr>
+            <td style="padding:32px 40px 0;text-align:center;">
+              <div style="display:inline-block;background:#e6f7f5;border:2px solid #009688;border-radius:50px;padding:10px 24px;">
+                <span style="color:#009688;font-weight:700;font-size:15px;">✅ Payment Successful</span>
+              </div>
+              <h2 style="margin:20px 0 4px;color:#1A2040;font-size:22px;">Your Registration is Confirmed!</h2>
+              <p style="margin:0;color:#64748b;font-size:14px;">Hi <strong>${studentName}</strong>, here is your receipt for the event below.</p>
+            </td>
+          </tr>
+
+          <!-- Event Card -->
+          <tr>
+            <td style="padding:28px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+                <tr>
+                  <td style="background:#1A2040;padding:14px 20px;">
+                    <p style="margin:0;color:#ffffff;font-weight:700;font-size:16px;">${eventTitle}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:20px;">
+                    <table width="100%" cellpadding="8" cellspacing="0">
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;width:40%;">📅 Date</td>
+                        <td style="color:#1A2040;font-size:13px;font-weight:600;">${formattedDate}</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;">📍 Venue</td>
+                        <td style="color:#1A2040;font-size:13px;font-weight:600;">${eventVenue || 'To be announced'}</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;">💳 Amount Paid</td>
+                        <td style="color:#009688;font-size:15px;font-weight:700;">${formattedAmount}</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;">🔖 Payment ID</td>
+                        <td style="color:#1A2040;font-size:12px;font-family:monospace;">${paymentId}</td>
+                      </tr>
+                    </table>
+
+                    <!-- QR Code Image (CID inline attachment) -->
+                    <div style="text-align:center;margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0;">
+                      <p style="margin:0 0 12px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">🎫 Entry QR Code</p>
+                      <img src="cid:event_qr_code" alt="Entry QR Code" width="160" height="160" style="border-radius:8px;border:3px solid #1A2040;display:block;margin:0 auto;"/>
+                      <p style="margin:10px 0 0;color:#94a3b8;font-size:11px;font-family:monospace;">${qrCode}</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Info Note -->
+          <tr>
+            <td style="padding:0 40px 28px;">
+              <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;">
+                <p style="margin:0;color:#92400e;font-size:13px;line-height:1.6;">
+                  <strong>📌 Important:</strong> Please show the QR Code from your AMSAM portal profile at the event entrance for admission. Keep this email as proof of registration.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
+              <p style="margin:0;color:#94a3b8;font-size:12px;">This is an automated receipt from the AMSAM Portal.<br/>Please do not reply to this email.</p>
+              <p style="margin:8px 0 0;color:#009688;font-size:12px;font-weight:600;">AIIMS Mangalagiri · AMSAM Club</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
+    to: toEmail,
+    subject: `✅ Payment Receipt – ${eventTitle}`,
+    html,
+    attachments: [
+      {
+        filename: 'qr_code.png',
+        content: qrBuffer,
+        cid: 'event_qr_code', // Referenced in HTML as cid:event_qr_code
+      }
+    ]
+  });
+}
+
+module.exports = { sendReceiptEmail };

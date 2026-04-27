@@ -3,6 +3,7 @@ const db = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
+const { sendReceiptEmail } = require('../mailer');
 
 // Ensure payment_orders table exists for secure payment verification
 db.exec(`
@@ -120,7 +121,23 @@ router.post('/:eventId/verify-payment', authenticate, (req, res) => {
       INSERT INTO registrations (user_id, event_id, qr_code, is_paid)
       VALUES (?, ?, ?, 1)
     `).run(req.user.id, eventId, qrCode);
-    
+
+    // Send receipt email asynchronously — don't block the HTTP response
+    const student = db.prepare('SELECT name, email FROM users WHERE id = ?').get(req.user.id);
+    const event   = db.prepare('SELECT title, event_date, venue, fee FROM events WHERE id = ?').get(eventId);
+    if (student && event) {
+      sendReceiptEmail({
+        toEmail:     student.email,
+        studentName: student.name,
+        eventTitle:  event.title,
+        eventDate:   event.event_date,
+        eventVenue:  event.venue,
+        amountPaid:  event.fee,
+        paymentId:   razorpay_payment_id,
+        qrCode,
+      }).catch(err => console.error('Receipt email failed:', err.message));
+    }
+
     res.status(201).json({ message: 'Payment verified and registered successfully', qr_code: qrCode });
   } catch (err) {
     res.status(500).json({ error: 'Payment successful but failed to save registration' });
