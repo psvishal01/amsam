@@ -1,34 +1,39 @@
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
+const { Resend } = require('resend');
 
-// ── Startup diagnostic: log mail config status ──────────────────
-if (process.env.MAIL_USER) {
-  console.log(`📧 Mailer configured: ${process.env.MAIL_USER}`);
+// ── Startup diagnostic ───────────────────────────────────────────
+if (process.env.RESEND_API_KEY) {
+  console.log('📧 Mailer configured via Resend API');
+} else if (process.env.MAIL_USER) {
+  console.log(`📧 Mailer configured via SMTP: ${process.env.MAIL_USER}`);
 } else {
-  console.error('❌ MAIL_USER is not set! Emails will NOT be sent. Add it to Railway environment variables.');
-}
-if (!process.env.MAIL_PASS) {
-  console.error('❌ MAIL_PASS is not set! Emails will NOT be sent. Add it to Railway environment variables.');
+  console.error('❌ No mail credentials set! Add RESEND_API_KEY to Railway variables.');
 }
 
-// Create transporter using Gmail (uses App Password from .env)
+// ── Send via Resend API (HTTPS — works on Railway) ───────────────
+async function sendViaResend(to, subject, html, attachments = []) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM || 'AMSAM Portal <onboarding@resend.dev>';
+  const payload = { from, to, subject, html };
+  if (attachments.length) payload.attachments = attachments;
+  const { error } = await resend.emails.send(payload);
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
+// ── Fallback: send via Gmail SMTP (localhost only) ───────────────
 function getTransporter() {
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    throw new Error('MAIL_USER or MAIL_PASS not configured. Add them to Railway environment variables.');
+    throw new Error('MAIL_USER or MAIL_PASS not configured.');
   }
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,          // Changed from 465 — Railway blocks 465 (IPv6 SMTP)
-    secure: false,      // false = STARTTLS (required for port 587)
-    requireTLS: true,   // Force TLS upgrade
-    family: 4,          // Force IPv4 to avoid Railway's IPv6 block
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    family: 4,
+    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    tls: { rejectUnauthorized: false }
   });
 }
 
@@ -154,20 +159,21 @@ async function sendReceiptEmail(opts) {
 </html>
   `.trim();
 
-  const transporter = getTransporter();
-  await transporter.sendMail({
-    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
-    to: toEmail,
-    subject: `✅ Payment Receipt – ${eventTitle}`,
-    html,
-    attachments: [
-      {
-        filename: 'qr_code.png',
-        content: qrBuffer,
-        cid: 'event_qr_code', // Referenced in HTML as cid:event_qr_code
-      }
-    ]
-  });
+  if (process.env.RESEND_API_KEY) {
+    // Resend doesn't support inline CID images — embed QR as base64 data URL
+    const qrDataUrl = `data:image/png;base64,${qrBuffer.toString('base64')}`;
+    const htmlWithDataUrl = html.replace('cid:event_qr_code', qrDataUrl);
+    await sendViaResend(toEmail, `✅ Payment Receipt – ${eventTitle}`, htmlWithDataUrl);
+  } else {
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
+      to: toEmail,
+      subject: `✅ Payment Receipt – ${eventTitle}`,
+      html,
+      attachments: [{ filename: 'qr_code.png', content: qrBuffer, cid: 'event_qr_code' }]
+    });
+  }
 }
 
 /**
@@ -278,13 +284,17 @@ async function sendWelcomeEmail(opts) {
 </html>
   `.trim();
 
-  const transporter = getTransporter();
-  await transporter.sendMail({
-    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
-    to: toEmail,
-    subject: `🎉 Welcome to AMSAM Portal – Your Login Credentials`,
-    html,
-  });
+  if (process.env.RESEND_API_KEY) {
+    await sendViaResend(toEmail, '🎉 Welcome to AMSAM Portal – Your Login Credentials', html);
+  } else {
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
+      to: toEmail,
+      subject: '🎉 Welcome to AMSAM Portal – Your Login Credentials',
+      html,
+    });
+  }
 }
 
 module.exports = { sendReceiptEmail, sendWelcomeEmail };
