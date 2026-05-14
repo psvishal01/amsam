@@ -1,15 +1,27 @@
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
 
+// ── Startup diagnostic: log mail config status ──────────────────
+if (process.env.MAIL_USER) {
+  console.log(`📧 Mailer configured: ${process.env.MAIL_USER}`);
+} else {
+  console.error('❌ MAIL_USER is not set! Emails will NOT be sent. Add it to Railway environment variables.');
+}
+if (!process.env.MAIL_PASS) {
+  console.error('❌ MAIL_PASS is not set! Emails will NOT be sent. Add it to Railway environment variables.');
+}
+
 // Create transporter using Gmail (uses App Password from .env)
 function getTransporter() {
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    throw new Error('Mail credentials not configured in .env');
+    throw new Error('MAIL_USER or MAIL_PASS not configured. Add them to Railway environment variables.');
   }
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    port: 587,          // Changed from 465 — Railway blocks 465 (IPv6 SMTP)
+    secure: false,      // false = STARTTLS (required for port 587)
+    requireTLS: true,   // Force TLS upgrade
+    family: 4,          // Force IPv4 to avoid Railway's IPv6 block
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
