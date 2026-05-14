@@ -1,3 +1,4 @@
+require('dns').setDefaultResultOrder('ipv4first'); // Force IPv4 — Railway blocks IPv6 SMTP
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -52,6 +53,26 @@ app.use('/api/events', require('./routes/events'));
 app.use('/api/documents', require('./routes/documents'));
 app.use('/api/verify', require('./routes/verify'));
 app.use('/api/registrations', require('./routes/registrations'));
+
+// ── Test email route (admin only — for diagnosing mail issues) ──
+app.get('/api/test-email', async (req, res) => {
+  const { sendWelcomeEmail } = require('./mailer');
+  const toEmail = req.query.to;
+  if (!toEmail) return res.status(400).json({ error: 'Pass ?to=your@email.com' });
+  try {
+    await sendWelcomeEmail({
+      toEmail,
+      studentName: 'Test User',
+      username: toEmail,
+      password: 'TestPassword123',
+    });
+    console.log(`✅ Test email successfully sent to ${toEmail}`);
+    res.json({ success: true, message: `Test email sent to ${toEmail}` });
+  } catch (err) {
+    console.error('❌ Test email FAILED:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Catch-all: serve index.html for SPA-style routing
 app.get('*', (req, res) => {
