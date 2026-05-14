@@ -4,16 +4,30 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Trust the first proxy (Railway load balancer) to ensure rate limiter gets the real IP
+app.set('trust proxy', 1);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // Middleware
-app.use(cors());
+app.use(helmet({ 
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: false, // Disabled to allow inline onclick handlers and Razorpay script
+  crossOriginOpenerPolicy: false // Disabled to allow Razorpay netbanking popups to work
+})); // Add Security Headers
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*', // Restrict this in production via .env
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -35,7 +49,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/events', require('./routes/events'));
-app.use('/api/mom', require('./routes/mom'));
+app.use('/api/documents', require('./routes/documents'));
 app.use('/api/verify', require('./routes/verify'));
 app.use('/api/registrations', require('./routes/registrations'));
 
@@ -52,7 +66,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`\n🏥 AMSAM Portal running at http://localhost:${PORT}`);
-  console.log(`👑 Super Admin: admin@amsam.in / Admin@123`);
-  console.log(`🛡️  Sub Admin:  subadmin@amsam.in / SubAdmin@123`);
-  console.log(`👤 Students:   arjun.sharma@aiimsmangalagiri.edu.in / Student@123\n`);
+  console.log(`✅ Server started securely.\n`);
 });

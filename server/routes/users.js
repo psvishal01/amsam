@@ -2,8 +2,10 @@ const router = require('express').Router();
 const path = require('path');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const crypto = require('crypto');
 const db = require('../db');
 const { authenticate, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
+const { sendWelcomeEmail } = require('../mailer');
 
 // Multer config for profile photos (disk storage)
 const storage = multer.diskStorage({
@@ -17,8 +19,15 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Only image files are allowed'));
+    const filetypes = /jpeg|jpg|png|webp/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only valid image files (jpeg, jpg, png, webp) are allowed'));
+    }
   }
 });
 
@@ -102,6 +111,39 @@ router.delete('/:id', authenticate, requireSuperAdmin, (req, res) => {
   res.json({ message: 'User deleted' });
 });
 
+// DELETE /api/users/bulk-delete — delete multiple students at once (super_admin only)
+router.post('/bulk-delete', authenticate, requireSuperAdmin, (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids must be a non-empty array' });
+  }
+
+  const deleted  = [];
+  const skipped  = [];
+
+  const bulkDel = db.transaction((idList) => {
+    for (const id of idList) {
+      const uid = parseInt(id);
+      if (isNaN(uid)) { skipped.push({ id, reason: 'Invalid ID' }); continue; }
+      if (uid === req.user.id) { skipped.push({ id: uid, reason: 'Cannot delete your own account' }); continue; }
+
+      const target = db.prepare('SELECT role FROM users WHERE id = ?').get(uid);
+      if (!target) { skipped.push({ id: uid, reason: 'User not found' }); continue; }
+      if (target.role === 'super_admin') { skipped.push({ id: uid, reason: 'Cannot delete a Super Admin' }); continue; }
+
+      db.prepare('DELETE FROM users WHERE id = ?').run(uid);
+      deleted.push(uid);
+    }
+  });
+
+  try {
+    bulkDel(ids);
+    res.json({ deleted: deleted.length, skipped, total: ids.length });
+  } catch (e) {
+    res.status(500).json({ error: 'Bulk delete failed: ' + e.message });
+  }
+});
+
 // PUT /api/users/:id/role — promote/demote (super_admin only)
 router.put('/:id/role', authenticate, requireSuperAdmin, (req, res) => {
   const { role } = req.body;
@@ -153,15 +195,15 @@ router.put('/:id/payment', authenticate, requireSuperAdmin, (req, res) => {
   res.json({ message: paid ? 'Student marked as paid' : 'Student marked as unpaid', is_paid: paid });
 });
 
-// GET /api/users/import-template — download a sample .xlsx template
+// GET /api/users/import-template — download a sample .xlsx template (no Password column — auto-generated)
 router.get('/import-template', authenticate, requireSuperAdmin, (req, res) => {
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([
-    ['Name', 'College ID', 'Email', 'Password', 'Batch', 'Department', 'Phone'],
-    ['Arjun Sharma', 'MBBS2024001', 'arjun@aiims.edu.in', 'Student@123', '2024', 'MBBS', '9876543210'],
+    ['Name', 'College ID', 'Email', 'Batch', 'Department', 'Phone'],
+    ['Arjun Sharma', 'MBBS2024001', 'arjun@aiims.edu.in', '2024', 'MBBS', '9876543210'],
   ]);
   // Set column widths
-  ws['!cols'] = [20,16,28,14,10,14,14].map(w => ({ wch: w }));
+  ws['!cols'] = [20,16,28,10,14,14].map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   res.setHeader('Content-Disposition', 'attachment; filename="amsam_students_template.xlsx"');
@@ -169,8 +211,17 @@ router.get('/import-template', authenticate, requireSuperAdmin, (req, res) => {
   res.send(buf);
 });
 
-// POST /api/users/bulk-import — parse spreadsheet and bulk-create students
-router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('file'), (req, res) => {
+// Helper: generate a human-readable random password (12 chars)
+function generatePassword() {
+  // Uses uppercase, lowercase, digits — easy to read, hard to guess
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from(crypto.randomBytes(12))
+    .map(b => chars[b % chars.length])
+    .join('');
+}
+
+// POST /api/users/bulk-import — parse spreadsheet, auto-generate passwords, send welcome emails
+router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   let rows;
@@ -186,27 +237,13 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
 
   const bcrypt = require('bcryptjs');
 
-  // ⚡ Pre-hash the default password ONCE — avoids ~100ms × N redundant hashes
-  const DEFAULT_PASSWORD = 'Student@123';
-  const defaultHash = bcrypt.hashSync(DEFAULT_PASSWORD, 10);
-
-  // Cache for any custom passwords found in the sheet (de-dup identical ones)
-  const customHashCache = new Map();
-  const getHash = (pwd) => {
-    if (!pwd || pwd === DEFAULT_PASSWORD) return defaultHash;
-    if (customHashCache.has(pwd)) return customHashCache.get(pwd);
-    const h = bcrypt.hashSync(pwd, 10);
-    customHashCache.set(pwd, h);
-    return h;
-  };
-
   const insertStmt = db.prepare(
     'INSERT INTO users (name, college_id, email, password_hash, role, batch, department, phone) VALUES (?,?,?,?,?,?,?,?)'
   );
 
   // ⚡ Validate all rows first, then insert in a single transaction
-  const toInsert = [];
-  const skipped  = [];
+  const toInsert    = [];
+  const skipped     = [];
   const imported_ids = [];
 
   // ── Pass 1: validate & collect rows to insert ──────────────────
@@ -226,10 +263,9 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
     const name       = get(['Name', 'Full Name', 'Student Name']);
     const college_id = get(['College ID', 'CollegeID', 'College Id', 'college_id']);
     const email      = get(['Email', 'Email Address', 'email']);
-    const password   = get(['Password', 'password']) || DEFAULT_PASSWORD;
-    const batch      = get(['Batch', 'Year', 'batch'])      || null;
+    const batch      = get(['Batch', 'Year', 'batch'])           || null;
     const department = get(['Department', 'Dept', 'department']) || null;
-    const phone      = get(['Phone', 'Mobile', 'phone'])    || null;
+    const phone      = get(['Phone', 'Mobile', 'phone'])         || null;
 
     if (!name || !college_id || !email) {
       skipped.push({ row: rowNum, reason: 'Missing required field (Name, College ID, or Email)', data: { name, college_id, email } });
@@ -242,16 +278,22 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
       continue;
     }
 
-    toInsert.push({ rowNum, name, college_id, email: email.toLowerCase(), password, batch, department, phone });
+    // ✨ Auto-generate a unique password for each student
+    const plainPassword = generatePassword();
+    const passwordHash  = bcrypt.hashSync(plainPassword, 10);
+
+    toInsert.push({ rowNum, name, college_id, email: email.toLowerCase(), plainPassword, passwordHash, batch, department, phone });
   }
 
   // ── Pass 2: insert all valid rows in ONE transaction ───────────
-  // ⚡ A single transaction commits once, making 1000 inserts ~1000× faster.
+  const successfulStudents = [];
+
   const bulkInsert = db.transaction((records) => {
     for (const r of records) {
       try {
-        insertStmt.run(r.name, r.college_id, r.email, getHash(r.password), 'student', r.batch, r.department, r.phone);
+        insertStmt.run(r.name, r.college_id, r.email, r.passwordHash, 'student', r.batch, r.department, r.phone);
         imported_ids.push(r.rowNum);
+        successfulStudents.push({ name: r.name, email: r.email, password: r.plainPassword });
       } catch (e) {
         skipped.push({
           row: r.rowNum,
@@ -265,10 +307,26 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
   try {
     bulkInsert(toInsert);
   } catch (e) {
-    return res.status(500).json({ error: 'Transaction failed: ' + e.message });
+    return res.status(500).json({ error: 'Transaction failed. Please check your data and try again.' });
   }
 
-  res.json({ imported: imported_ids.length, skipped, total: rows.length });
+  // ── Pass 3: send welcome emails asynchronously (fire & forget) ─
+  // We respond immediately and let emails send in the background so the
+  // admin is not left waiting if the mail server is slow.
+  const portalUrl = process.env.PORTAL_URL;
+  setImmediate(() => {
+    for (const student of successfulStudents) {
+      sendWelcomeEmail({
+        toEmail:     student.email,
+        studentName: student.name,
+        username:    student.email,
+        password:    student.password,
+        portalUrl,
+      }).catch(err => console.error(`Welcome email failed for ${student.email}:`, err.message));
+    }
+  });
+
+  res.json({ imported: imported_ids.length, skipped, total: rows.length, emailsSent: successfulStudents.length });
 });
 
 module.exports = router;

@@ -37,16 +37,14 @@ db.exec(`
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS mom (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    title        TEXT NOT NULL,
-    meeting_date TEXT,
-    attendees    TEXT,
-    agenda       TEXT,
-    notes        TEXT,
-    action_items TEXT,
-    created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  CREATE TABLE IF NOT EXISTS documents (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    description TEXT,
+    category    TEXT NOT NULL CHECK(category IN ('MOM', 'MOU', 'Letters', 'Finance')),
+    file_path   TEXT NOT NULL,
+    created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
   CREATE TABLE IF NOT EXISTS registrations (
@@ -99,22 +97,10 @@ if (!alreadySeeded) {
     'Hands-on CPR and Basic Life Support training for all MBBS students. Certification will be provided upon successful completion.',
     'Skills Lab, AIIMS Mangalagiri', '2025-05-05', '02:00 PM', 2);
 
-  // MOM
-  const insM = db.prepare(`INSERT INTO mom (title, meeting_date, attendees, agenda, notes, action_items, created_by) VALUES (?,?,?,?,?,?,?)`);
-  insM.run(
-    'Monthly General Body Meeting — April 2025', '2025-04-01',
-    JSON.stringify(['Dr. Admin Kumar', 'Dr. Meena Pillai', 'Arjun Sharma', 'Priya Nair', 'Rahul Reddy']),
-    'Review of March activities, Planning upcoming events, Budget discussion',
-    'The meeting commenced at 5:00 PM. The secretary presented a report on March activities including the sports day and cultural night. Budget for the upcoming symposium was approved unanimously.',
-    JSON.stringify(['Finalize speakers for Annual Symposium by April 10', "Submit budget proposal to Dean's office by April 5", 'Create WhatsApp group for event volunteers']),
-    1);
-  insM.run(
-    'Emergency Committee Meeting — March 2025', '2025-03-15',
-    JSON.stringify(['Dr. Admin Kumar', 'Dr. Meena Pillai', 'Arjun Sharma']),
-    'Blood donation camp logistics, Poster design approval',
-    'An emergency meeting was called to finalize logistics for the blood donation camp. Venue confirmed as Ground Floor Lobby. Registration form to be circulated through the college portal.',
-    JSON.stringify(['Design registration form for blood donation', 'Coordinate with blood bank by March 20', 'Print and display posters around campus']),
-    1);
+  // Documents
+  const insDoc = db.prepare(`INSERT INTO documents (title, description, category, file_path, created_by) VALUES (?,?,?,?,?)`);
+  // Since we don't have actual files, we will not seed dummy files that don't exist to avoid broken links, or we can use a dummy URL.
+  // Actually, we'll leave it empty to avoid errors when deleting files that don't exist, or just use a dummy text file.
 
   console.log('✅ Database seeded with demo data.');
 }

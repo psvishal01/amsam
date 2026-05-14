@@ -7,11 +7,16 @@ function getTransporter() {
     throw new Error('Mail credentials not configured in .env');
   }
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 }
 
@@ -153,4 +158,122 @@ async function sendReceiptEmail(opts) {
   });
 }
 
-module.exports = { sendReceiptEmail };
+/**
+ * Sends a welcome email to a newly imported student with their login credentials.
+ * @param {object} opts - { toEmail, studentName, username, password, portalUrl }
+ */
+async function sendWelcomeEmail(opts) {
+  const { toEmail, studentName, username, password, portalUrl = 'https://amsam-production.up.railway.app/index.html' } = opts;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome to AMSAM Portal</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#1A2040 0%,#009688 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:1px;">AMSAM</h1>
+              <p style="margin:4px 0 0;color:rgba(255,255,255,0.75);font-size:13px;letter-spacing:2px;text-transform:uppercase;">AIIMS Mangalagiri Student Association of Medicine</p>
+            </td>
+          </tr>
+
+          <!-- Welcome Banner -->
+          <tr>
+            <td style="padding:32px 40px 0;text-align:center;">
+              <div style="display:inline-block;background:#e6f7f5;border:2px solid #009688;border-radius:50px;padding:10px 24px;">
+                <span style="color:#009688;font-weight:700;font-size:15px;">🎉 Welcome to the Portal!</span>
+              </div>
+              <h2 style="margin:20px 0 4px;color:#1A2040;font-size:22px;">Hi ${studentName}, your account is ready</h2>
+              <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6;">Your AMSAM member account has been created by the admin.<br/>Use the credentials below to log in for the first time.</p>
+            </td>
+          </tr>
+
+          <!-- Credentials Card -->
+          <tr>
+            <td style="padding:28px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+                <tr>
+                  <td style="background:#1A2040;padding:14px 20px;">
+                    <p style="margin:0;color:#ffffff;font-weight:700;font-size:15px;">🔐 Your Login Credentials</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:24px;">
+                    <table width="100%" cellpadding="10" cellspacing="0">
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;width:40%;">
+                          📧 Username / Email
+                        </td>
+                        <td style="background:#eef2ff;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:14px;color:#1A2040;font-weight:600;">
+                          ${username}
+                        </td>
+                      </tr>
+                      <tr><td colspan="2" style="padding:4px 0;"></td></tr>
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;">
+                          🔑 Temporary Password
+                        </td>
+                        <td style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:16px;color:#c2410c;font-weight:700;letter-spacing:1px;">
+                          ${password}
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- CTA Button -->
+                    <div style="text-align:center;margin-top:28px;">
+                      <a href="${portalUrl}" style="display:inline-block;background:linear-gradient(135deg,#1A2040,#009688);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;letter-spacing:0.5px;">Login to AMSAM Portal →</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Security Note -->
+          <tr>
+            <td style="padding:0 40px 28px;">
+              <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;">
+                <p style="margin:0;color:#92400e;font-size:13px;line-height:1.6;">
+                  <strong>📌 Important:</strong> Please change your password immediately after your first login for security. Keep your credentials private and do not share them with anyone.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
+              <p style="margin:0;color:#94a3b8;font-size:12px;">This is an automated email from the AMSAM Portal.<br/>Please do not reply to this email.</p>
+              <p style="margin:8px 0 0;color:#009688;font-size:12px;font-weight:600;">AIIMS Mangalagiri · AMSAM Club</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
+    to: toEmail,
+    subject: `🎉 Welcome to AMSAM Portal – Your Login Credentials`,
+    html,
+  });
+}
+
+module.exports = { sendReceiptEmail, sendWelcomeEmail };
+

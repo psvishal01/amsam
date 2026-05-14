@@ -25,7 +25,7 @@ function switchAdminTab(tab) {
   document.getElementById(`panel${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.add('active');
   if (tab === 'students') loadStudents();
   if (tab === 'events')   loadEvents();
-  if (tab === 'mom')      loadMOMs();
+  if (tab === 'documents') loadDocuments();
   if (tab === 'scanner')  stopScanner();
 }
 
@@ -52,8 +52,9 @@ window.addEventListener('click', () => {
   document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
 });
 
-// ── STUDENTS ───────────────────────────────────────────────────
+// ── STUDENTS ─────────────────────────────────────────────
 let students = [];
+let selectedStudents = new Set(); // tracks selected student IDs
 
 async function loadStudents() {
   document.getElementById('studentsTable').innerHTML = '<div class="page-loader"><div class="spinner"></div><span>Loading…</span></div>';
@@ -65,8 +66,14 @@ async function loadStudents() {
 
 function renderStudentsTable() {
   const searchQuery = (document.getElementById('studentSearch')?.value || '').toLowerCase();
+  const paymentFilter = document.getElementById('paymentFilter')?.value || 'all';
+
   const list = students.filter(s => {
     if (s.role === 'super_admin') return false;
+    
+    if (paymentFilter === 'paid' && !s.is_paid) return false;
+    if (paymentFilter === 'unpaid' && s.is_paid) return false;
+
     if (!searchQuery) return true;
     return s.name.toLowerCase().includes(searchQuery) || 
            s.college_id.toLowerCase().includes(searchQuery) || 
@@ -78,15 +85,20 @@ function renderStudentsTable() {
     return;
   }
   const superAdmin = isSuperAdmin();
+  const allIds = list.map(s => s.id);
+  const allSelected = allIds.length > 0 && allIds.every(id => selectedStudents.has(id));
+
   document.getElementById('studentsTable').innerHTML = `
     <div class="table-wrap">
       <table>
         <thead><tr>
+          ${superAdmin ? `<th class="cb-col"><input type="checkbox" class="select-cb" id="selectAllCb" ${allSelected ? 'checked' : ''} onchange="toggleSelectAll(this, [${allIds.join(',')}])"/></th>` : ''}
           <th>Student</th><th>College ID</th><th>Email</th><th>Dept / Batch</th><th>Payment</th><th>Role</th>
           ${superAdmin ? '<th>Actions</th>' : ''}
         </tr></thead>
         <tbody>
-          ${list.map(s => `<tr>
+          ${list.map(s => `<tr id="row-${s.id}" class="${selectedStudents.has(s.id) ? 'row-selected' : ''}">
+            ${superAdmin ? `<td class="cb-col"><input type="checkbox" class="select-cb" id="cb-${s.id}" ${selectedStudents.has(s.id) ? 'checked' : ''} onchange="toggleSelect(${s.id}, this)"/></td>` : ''}
             <td>
               <div class="student-name-cell">
                 <div class="student-avatar">${s.photo_path ? `<img src="${s.photo_path}" alt="${s.name}"/>` : s.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
@@ -338,95 +350,135 @@ async function deleteEvent(id, title) {
   } catch(e) { showToast('Error: '+e.message,'error'); }
 }
 
-// ── MOM ────────────────────────────────────────────────────────
-let moms = [];
+// ── DOCUMENTS ────────────────────────────────────────────────────────
+let documents = [];
 
-async function loadMOMs() {
-  document.getElementById('momTable').innerHTML = '<div class="page-loader"><div class="spinner"></div><span>Loading…</span></div>';
+async function loadDocuments() {
+  document.getElementById('documentsTable').innerHTML = '<div class="page-loader"><div class="spinner"></div><span>Loading…</span></div>';
   try {
-    moms = await apiFetch('/api/mom');
-    renderMOMTable();
+    documents = await apiFetch('/api/documents');
+    renderDocumentsTable();
   } catch(e) { showToast('Error: '+e.message,'error'); }
 }
 
-function renderMOMTable() {
-  if (!moms.length) {
-    document.getElementById('momTable').innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><h3>No MOM records yet</h3><p>Add your first meeting record.</p></div>';
+function renderDocumentsTable() {
+  if (!documents.length) {
+    document.getElementById('documentsTable').innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><h3>No Documents yet</h3><p>Upload your first document.</p></div>';
     return;
   }
-  document.getElementById('momTable').innerHTML = `
+  document.getElementById('documentsTable').innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Title</th><th>Date</th><th>Attendees</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Title</th><th>Category</th><th>Description</th><th>Date</th><th>Actions</th></tr></thead>
         <tbody>
-          ${moms.map(m => {
-            let att = [];
-            try { att = JSON.parse(m.attendees||'[]'); } catch{}
-            return `<tr>
-              <td style="font-weight:500;max-width:280px">${m.title}</td>
-              <td style="white-space:nowrap">${m.meeting_date||'—'}</td>
-              <td style="font-size:.82rem">${att.slice(0,3).join(', ')}${att.length>3?` +${att.length-3} more`:''}</td>
-              <td>
-                <div style="display:flex;gap:.4rem">
-                  <button class="btn btn-secondary btn-sm" onclick="editMOM(${m.id})">✏️ Edit</button>
-                  <button class="btn btn-danger btn-sm"    onclick="deleteMOM(${m.id},'${m.title.replace(/'/g,"\\'")}')">🗑️</button>
-                </div>
-              </td>
-            </tr>`;
-          }).join('')}
+          ${documents.map(d => `<tr>
+            <td style="font-weight:500;max-width:240px">
+              <a href="${d.file_path}" target="_blank" style="color:var(--navy);text-decoration:none;">
+                📄 ${d.title}
+              </a>
+            </td>
+            <td><span class="badge" style="background:var(--teal-pale);color:var(--teal-dark);">${d.category}</span></td>
+            <td style="max-width:280px;font-size:.85rem">${d.description || '—'}</td>
+            <td style="white-space:nowrap">${new Date(d.created_at).toLocaleDateString('en-IN')}</td>
+            <td>
+              <div style="display:flex;gap:.4rem">
+                <button class="btn btn-secondary btn-sm" onclick="editDocument(${d.id})">✏️ Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteDocument(${d.id},'${d.title.replace(/'/g,"\\'")}')">🗑️</button>
+              </div>
+            </td>
+          </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
 }
 
-function openMOMModal(id = null) {
-  document.getElementById('momModalTitle').textContent = id ? 'Edit MOM' : 'Add MOM';
-  document.getElementById('momId').value = id || '';
-  if (!id) { ['momTitle','momDate','momAttendees','momAgenda','momNotes','momActions'].forEach(f => document.getElementById(f).value=''); }
-  else {
-    const m = moms.find(x=>x.id===id);
-    if (!m) return;
-    let att=[], acts=[];
-    try{att=JSON.parse(m.attendees||'[]');}catch{}
-    try{acts=JSON.parse(m.action_items||'[]');}catch{}
-    document.getElementById('momTitle').value     = m.title;
-    document.getElementById('momDate').value      = m.meeting_date;
-    document.getElementById('momAttendees').value = att.join(', ');
-    document.getElementById('momAgenda').value    = m.agenda;
-    document.getElementById('momNotes').value     = m.notes;
-    document.getElementById('momActions').value   = acts.join('\n');
+function openDocumentModal(id = null) {
+  const modalTitle = document.getElementById('documentModalTitle');
+  const saveBtn = document.getElementById('saveDocBtn');
+  const fileNote = document.getElementById('docFileRequiredNote');
+  
+  document.getElementById('docId').value = id || '';
+  
+  if (id) {
+    const d = documents.find(x => x.id === id);
+    if (!d) return;
+    modalTitle.textContent = 'Edit Document';
+    saveBtn.textContent = 'Save Changes';
+    document.getElementById('docTitle').value = d.title;
+    document.getElementById('docCategory').value = d.category;
+    document.getElementById('docDesc').value = d.description || '';
+    document.getElementById('docFile').value = '';
+    fileNote.style.display = 'none'; // Optional when editing
+  } else {
+    modalTitle.textContent = 'Upload Document';
+    saveBtn.textContent = 'Upload';
+    document.getElementById('docTitle').value = '';
+    document.getElementById('docCategory').value = 'MOM';
+    document.getElementById('docDesc').value = '';
+    document.getElementById('docFile').value = '';
+    fileNote.style.display = 'inline'; // Required when creating
   }
-  openModal('momModal');
+  openModal('documentModal');
 }
-function editMOM(id) { openMOMModal(id); }
 
-async function saveMOM() {
-  const id    = document.getElementById('momId').value;
-  const title = document.getElementById('momTitle').value.trim();
+function editDocument(id) { openDocumentModal(id); }
+
+async function saveDocument() {
+  const id = document.getElementById('docId').value;
+  const title = document.getElementById('docTitle').value.trim();
+  const category = document.getElementById('docCategory').value;
+  const desc = document.getElementById('docDesc').value.trim();
+  const fileInput = document.getElementById('docFile');
+
   if (!title) return showToast('Title is required', 'error');
-  const attRaw = document.getElementById('momAttendees').value;
-  const actRaw = document.getElementById('momActions').value;
-  const body = {
-    title,
-    meeting_date: document.getElementById('momDate').value,
-    attendees:    attRaw ? attRaw.split(',').map(s=>s.trim()).filter(Boolean) : [],
-    agenda:       document.getElementById('momAgenda').value,
-    notes:        document.getElementById('momNotes').value,
-    action_items: actRaw ? actRaw.split('\n').map(s=>s.trim()).filter(Boolean) : []
-  };
+  if (!id && !fileInput.files[0]) return showToast('Please select a file to upload', 'error');
+
+  const formData = new FormData();
+  formData.append('title', title);
+  formData.append('category', category);
+  formData.append('description', desc);
+  if (fileInput.files[0]) {
+    formData.append('file', fileInput.files[0]);
+  }
+
   try {
-    await apiFetch(id ? `/api/mom/${id}` : '/api/mom', { method: id?'PUT':'POST', body:JSON.stringify(body) });
-    showToast(id ? 'MOM updated!' : 'MOM created!', 'success');
-    closeModal('momModal');
-    loadMOMs();
-  } catch(e) { showToast('Error: '+e.message,'error'); }
+    const btn = document.getElementById('saveDocBtn');
+    const oldText = btn.textContent;
+    btn.textContent = id ? 'Saving...' : 'Uploading...';
+    btn.disabled = true;
+
+    const url = id ? `/api/documents/${id}` : '/api/documents';
+    const method = id ? 'PUT' : 'POST';
+
+    await fetch(url, {
+      method: method,
+      headers: { Authorization: `Bearer ${getToken()}` },
+      body: formData
+    }).then(res => {
+      if (!res.ok) throw new Error(id ? 'Update failed' : 'Upload failed');
+      return res.json();
+    });
+
+    btn.textContent = oldText;
+    btn.disabled = false;
+
+    showToast(id ? 'Document updated!' : 'Document uploaded!', 'success');
+    closeModal('documentModal');
+    loadDocuments();
+  } catch(e) { 
+    showToast('Error: '+e.message,'error'); 
+    const btn = document.getElementById('saveDocBtn');
+    btn.disabled = false;
+    btn.textContent = id ? 'Save Changes' : 'Upload';
+  }
 }
 
-async function deleteMOM(id, title) {
-  if (!confirm(`Delete MOM record "${title}"?`)) return;
+async function deleteDocument(id, title) {
+  if (!confirm(`Delete document "${title}"?`)) return;
   try {
-    await apiFetch(`/api/mom/${id}`,{method:'DELETE'});
-    showToast('MOM deleted','success'); loadMOMs();
+    await apiFetch(`/api/documents/${id}`, { method: 'DELETE' });
+    showToast('Document deleted','success'); 
+    loadDocuments();
   } catch(e) { showToast('Error: '+e.message,'error'); }
 }
 
@@ -658,7 +710,8 @@ async function submitImport() {
     }
 
     document.getElementById('importResult').classList.add('show');
-    showToast(`✅ ${data.imported} student${data.imported !== 1 ? 's' : ''} imported!`, 'success');
+    const emailNote = data.emailsSent > 0 ? ` 📧 Welcome emails sent to ${data.emailsSent} student${data.emailsSent !== 1 ? 's' : ''}.` : '';
+    showToast(`✅ ${data.imported} student${data.imported !== 1 ? 's' : ''} imported!${emailNote}`, 'success');
 
     // Refresh students table
     if (data.imported > 0) loadStudents();
@@ -667,5 +720,88 @@ async function submitImport() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Import';
+  }
+}
+
+// ── BULK SELECT & DELETE ────────────────────────────────────
+
+function updateBulkToolbar() {
+  const count = selectedStudents.size;
+  const toolbar = document.getElementById('bulkToolbar');
+  document.getElementById('bulkCount').textContent = count;
+  toolbar.classList.toggle('show', count > 0);
+}
+
+function toggleSelect(id, cb) {
+  if (cb.checked) {
+    selectedStudents.add(id);
+  } else {
+    selectedStudents.delete(id);
+  }
+  // Toggle row highlight
+  const row = document.getElementById(`row-${id}`);
+  if (row) row.classList.toggle('row-selected', cb.checked);
+
+  // Sync select-all checkbox state
+  const visibleIds = Array.from(document.querySelectorAll('[id^="cb-"]')).map(el => parseInt(el.id.replace('cb-', '')));
+  const allChecked = visibleIds.length > 0 && visibleIds.every(vid => selectedStudents.has(vid));
+  const selectAllCb = document.getElementById('selectAllCb');
+  if (selectAllCb) selectAllCb.checked = allChecked;
+
+  updateBulkToolbar();
+}
+
+function toggleSelectAll(masterCb, ids) {
+  ids.forEach(id => {
+    if (masterCb.checked) {
+      selectedStudents.add(id);
+    } else {
+      selectedStudents.delete(id);
+    }
+    const cb = document.getElementById(`cb-${id}`);
+    if (cb) cb.checked = masterCb.checked;
+    const row = document.getElementById(`row-${id}`);
+    if (row) row.classList.toggle('row-selected', masterCb.checked);
+  });
+  updateBulkToolbar();
+}
+
+function clearSelection() {
+  selectedStudents.clear();
+  renderStudentsTable(); // re-render clears all checkboxes
+  updateBulkToolbar();
+}
+
+function confirmBulkDelete() {
+  if (!isSuperAdmin()) return showToast('Only Super Admin can delete students', 'error');
+  if (selectedStudents.size === 0) return;
+  const n = selectedStudents.size;
+  document.getElementById('bulkDeleteCount').textContent = `${n} student${n !== 1 ? 's' : ''}`;
+  openModal('bulkDeleteModal');
+}
+
+async function executeBulkDelete() {
+  const ids = Array.from(selectedStudents);
+  if (!ids.length) return;
+
+  const btn = document.getElementById('confirmBulkDeleteBtn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+
+  try {
+    const data = await apiFetch('/api/users/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids })
+    });
+    closeModal('bulkDeleteModal');
+    selectedStudents.clear();
+    updateBulkToolbar();
+    showToast(`🗑️ ${data.deleted} student${data.deleted !== 1 ? 's' : ''} deleted.`, 'success');
+    loadStudents();
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Yes, Delete All';
   }
 }

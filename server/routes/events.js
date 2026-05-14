@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const xss = require('xss');
 
 // GET /api/events — all users can read
 router.get('/', authenticate, (req, res) => {
@@ -25,7 +26,7 @@ router.post('/', authenticate, requireAdmin, (req, res) => {
   if (!title) return res.status(400).json({ error: 'Title is required' });
   const info = db.prepare(
     'INSERT INTO events (title, description, venue, event_date, event_time, fee, created_by) VALUES (?,?,?,?,?,?,?)'
-  ).run(title, description || '', venue || '', event_date || '', event_time || '', fee || 0, req.user.id);
+  ).run(xss(title), xss(description || ''), xss(venue || ''), xss(event_date || ''), xss(event_time || ''), fee || 0, req.user.id);
   res.status(201).json({ message: 'Event created', id: info.lastInsertRowid });
 });
 
@@ -37,11 +38,11 @@ router.put('/:id', authenticate, requireAdmin, (req, res) => {
   db.prepare(
     'UPDATE events SET title=?, description=?, venue=?, event_date=?, event_time=?, fee=? WHERE id=?'
   ).run(
-    title || ev.title,
-    description ?? ev.description,
-    venue ?? ev.venue,
-    event_date ?? ev.event_date,
-    event_time ?? ev.event_time,
+    xss(title || ev.title),
+    xss(description ?? ev.description),
+    xss(venue ?? ev.venue),
+    xss(event_date ?? ev.event_date),
+    xss(event_time ?? ev.event_time),
     fee ?? ev.fee,
     req.params.id
   );

@@ -4,13 +4,13 @@ const user = getUser();
 document.getElementById('navName').textContent = user?.name || '';
 renderNavAvatar(user || {});
 
-let allEvents = [], allMOMs = [], myRegistrations = [];
+let allEvents = [], allDocuments = [], myRegistrations = [];
 
 // Switch tabs
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  const tabName = tab === 'events' ? 'Events' : tab === 'registration' ? 'Registration' : 'MOM';
+  const tabName = tab === 'events' ? 'Events' : tab === 'registration' ? 'Registration' : 'Documents';
   document.getElementById(`tab${tabName}`).classList.add('active');
   document.getElementById(`panel${tabName}`).classList.add('active');
 }
@@ -52,50 +52,34 @@ function renderEvents() {
   }).join('');
 }
 
-// Render MOMs
-function renderMOMs() {
-  const q = (document.getElementById('momSearch')?.value || '').toLowerCase();
-  const filtered = allMOMs.filter(m =>
-    m.title.toLowerCase().includes(q) ||
-    (m.agenda || '').toLowerCase().includes(q) ||
-    (m.notes || '').toLowerCase().includes(q)
+// Render Documents
+function renderDocuments() {
+  const q = (document.getElementById('docSearch')?.value || '').toLowerCase();
+  const category = document.getElementById('docCategoryFilter')?.value || 'All';
+  const filtered = allDocuments.filter(d =>
+    (category === 'All' || d.category === category) &&
+    (d.title.toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q))
   );
-  const list = document.getElementById('momList');
+  const list = document.getElementById('documentsList');
   if (!filtered.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><h3>No MOM records found</h3><p>Try a different search term.</p></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><h3>No documents found</h3><p>Try a different search term or category.</p></div>`;
     return;
   }
-  list.innerHTML = filtered.map(m => {
-    let attendees = [];
-    let actions = [];
-    try { attendees = JSON.parse(m.attendees || '[]'); } catch {}
-    try { actions = JSON.parse(m.action_items || '[]'); } catch {}
-    return `<div class="mom-card animate-in">
+  list.innerHTML = filtered.map(d => `
+    <div class="mom-card animate-in">
       <div class="mom-card-header">
-        <div class="mom-card-title">${m.title}</div>
-        <div class="mom-date-badge">📅 ${m.meeting_date || 'Date TBD'}</div>
+        <div class="mom-card-title">📄 ${d.title}</div>
+        <div class="mom-date-badge" style="background:var(--teal-pale);color:var(--teal-dark);">${d.category}</div>
       </div>
       <div class="mom-card-body">
-        ${m.agenda ? `<div class="mom-section">
-          <div class="mom-section-label">Agenda</div>
-          <div class="mom-section-text">${m.agenda}</div>
-        </div>` : ''}
-        ${attendees.length ? `<div class="mom-section">
-          <div class="mom-section-label">Attendees (${attendees.length})</div>
-          <div class="mom-attendees">${attendees.map(a => `<span class="attendee-chip">👤 ${a}</span>`).join('')}</div>
-        </div>` : ''}
-        ${m.notes ? `<div class="mom-section">
-          <div class="mom-section-label">Meeting Notes</div>
-          <div class="mom-section-text">${m.notes}</div>
-        </div>` : ''}
-        ${actions.length ? `<div class="mom-section">
-          <div class="mom-section-label">Action Items</div>
-          ${actions.map(a => `<div class="action-item"><span class="action-bullet">→</span><span>${a}</span></div>`).join('')}
-        </div>` : ''}
-        ${m.created_by_name ? `<div class="text-muted mt-1" style="font-size:.75rem">Recorded by: ${m.created_by_name}</div>` : ''}
+        ${d.description ? `<div class="mom-section-text" style="margin-bottom:1rem;">${d.description}</div>` : ''}
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <a href="${d.file_path}" target="_blank" class="btn btn-primary btn-sm" download>⬇️ Download File</a>
+          ${d.created_by_name ? `<span class="text-muted" style="font-size:.75rem">Uploaded by: ${d.created_by_name} · ${new Date(d.created_at).toLocaleDateString('en-IN')}</span>` : ''}
+        </div>
       </div>
-    </div>`;
-  }).join('');
+    </div>
+  `).join('');
 }
 
 // Render Registrations
@@ -241,16 +225,16 @@ function viewRegistrationQR(qrCode, eventTitle) {
 
 async function loadDashboard() {
   try {
-    [allEvents, allMOMs, myRegistrations] = await Promise.all([
+    [allEvents, allDocuments, myRegistrations] = await Promise.all([
       apiFetch('/api/events'), 
-      apiFetch('/api/mom'),
+      apiFetch('/api/documents'),
       apiFetch('/api/registrations/my-registrations')
     ]);
     renderEvents();
-    renderMOMs();
+    renderDocuments();
     renderRegistrations();
-    // If URL has ?tab=mom, switch tab
-    if (new URLSearchParams(location.search).get('tab') === 'mom') switchTab('mom');
+    // If URL has ?tab=documents, switch tab
+    if (new URLSearchParams(location.search).get('tab') === 'documents') switchTab('documents');
   } catch (err) {
     showToast('Failed to load: ' + err.message, 'error');
   }

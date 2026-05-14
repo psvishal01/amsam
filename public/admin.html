@@ -105,6 +105,37 @@
     .import-file-name { font-size:.82rem; color:var(--teal-dark); font-weight:600; margin-top:.6rem; }
 
     @media(max-width:640px) { .form-row { grid-template-columns:1fr; } }
+
+    /* ── Bulk selection ── */
+    .select-cb { width:16px; height:16px; cursor:pointer; accent-color:var(--teal); }
+    th.cb-col, td.cb-col { width:44px; text-align:center; padding-left:.5rem; padding-right:.25rem; }
+
+    /* Floating bulk-action toolbar */
+    .bulk-toolbar {
+      position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(20px);
+      background:var(--navy); color:#fff; border-radius:50px;
+      padding:.65rem 1.1rem; display:flex; align-items:center; gap:.9rem;
+      box-shadow:0 8px 32px rgba(0,0,0,.35); opacity:0; pointer-events:none;
+      transition:opacity .22s ease, transform .22s ease; z-index:900;
+      white-space:nowrap;
+    }
+    .bulk-toolbar.show { opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+    .bulk-toolbar-count { font-size:.88rem; font-weight:600; }
+    .bulk-toolbar-count span { color:var(--gold); }
+    .btn-bulk-delete {
+      background:#ef4444; color:#fff; border:none; border-radius:20px;
+      padding:.45rem 1rem; font-size:.85rem; font-weight:600; cursor:pointer;
+      transition:background .15s;
+    }
+    .btn-bulk-delete:hover { background:#dc2626; }
+    .btn-bulk-clear {
+      background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:20px;
+      padding:.45rem .85rem; font-size:.82rem; cursor:pointer; transition:background .15s;
+    }
+    .btn-bulk-clear:hover { background:rgba(255,255,255,.22); }
+
+    /* Highlight selected rows */
+    tr.row-selected { background:rgba(0,150,136,.07) !important; }
   </style>
 </head>
 <body>
@@ -132,7 +163,7 @@
 <div class="admin-tabs" id="adminTabs">
   <button class="admin-tab active"    onclick="switchAdminTab('students')" id="tabStudents">👥 Students</button>
   <button class="admin-tab"           onclick="switchAdminTab('events')"   id="tabEvents">📅 Events</button>
-  <button class="admin-tab"           onclick="switchAdminTab('mom')"      id="tabMOM">📝 MOM</button>
+  <button class="admin-tab"           onclick="switchAdminTab('documents')" id="tabDocuments">📂 Documents</button>
   <button class="admin-tab"           onclick="switchAdminTab('scanner')"  id="tabScanner">📷 QR Scanner</button>
 </div>
 
@@ -148,6 +179,11 @@
             <span style="position:absolute;left:.6rem;top:50%;transform:translateY(-50%);font-size:.85rem;color:var(--text-muted);">🔍</span>
             <input type="text" id="studentSearch" class="form-control" placeholder="Search students..." onkeyup="filterStudents()" style="padding-left:1.8rem; padding-top:.4rem; padding-bottom:.4rem; width:220px; font-size:.85rem; margin:0;"/>
           </div>
+          <select id="paymentFilter" class="form-control" onchange="filterStudents()" style="padding-top:.4rem; padding-bottom:.4rem; font-size:.85rem; margin:0; width:auto;">
+            <option value="all">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
           <button class="btn btn-secondary btn-sm" id="importExcelBtn" onclick="openImportModal()">📤 Import Excel</button>
           <button class="btn btn-primary btn-sm" id="addStudentBtn" onclick="openStudentModal()">+ Add Student</button>
         </div>
@@ -164,13 +200,13 @@
       <div id="eventsTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
     </div>
 
-    <!-- ── MOM ── -->
-    <div class="tab-panel" id="panelMOM">
+    <!-- ── DOCUMENTS ── -->
+    <div class="tab-panel" id="panelDocuments">
       <div class="section-header mb-2">
-        <h2 class="section-title">Manage Minutes of Meeting</h2>
-        <button class="btn btn-primary btn-sm" onclick="openMOMModal()">+ Add MOM</button>
+        <h2 class="section-title">Manage Documents</h2>
+        <button class="btn btn-primary btn-sm" onclick="openDocumentModal()">+ Add Document</button>
       </div>
-      <div id="momTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
+      <div id="documentsTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
     </div>
 
     <!-- ── QR SCANNER ── -->
@@ -326,45 +362,40 @@
   </div>
 </div>
 
-<!-- ── MOM MODAL ── -->
-<div class="modal-overlay" id="momModal">
+<!-- ── DOCUMENT MODAL ── -->
+<div class="modal-overlay" id="documentModal">
   <div class="modal">
     <div class="modal-header">
-      <h3 class="modal-title" id="momModalTitle">Add MOM</h3>
-      <button class="modal-close" onclick="closeModal('momModal')">✕</button>
+      <h3 class="modal-title" id="documentModalTitle">Upload Document</h3>
+      <button class="modal-close" onclick="closeModal('documentModal')">✕</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="momId"/>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Meeting Title *</label>
-          <input type="text" id="momTitle" class="form-control" placeholder="e.g. General Body Meeting"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Date</label>
-          <input type="date" id="momDate" class="form-control"/>
-        </div>
+      <input type="hidden" id="docId"/>
+      <div class="form-group">
+        <label class="form-label">Document Title *</label>
+        <input type="text" id="docTitle" class="form-control" placeholder="e.g. April Meeting Minutes"/>
       </div>
       <div class="form-group">
-        <label class="form-label">Attendees (comma separated)</label>
-        <input type="text" id="momAttendees" class="form-control" placeholder="e.g. Dr. Kumar, Arjun Sharma, …"/>
+        <label class="form-label">Category *</label>
+        <select id="docCategory" class="form-control">
+          <option value="MOM">MOM</option>
+          <option value="MOU">MOU</option>
+          <option value="Letters">Letters</option>
+          <option value="Finance">Finance</option>
+        </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Agenda</label>
-        <textarea id="momAgenda" class="form-control" rows="2" placeholder="Topics discussed…"></textarea>
+        <label class="form-label">Description</label>
+        <textarea id="docDesc" class="form-control" rows="3" placeholder="Brief description of the document…"></textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Meeting Notes</label>
-        <textarea id="momNotes" class="form-control" rows="3" placeholder="Summary of the meeting…"></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Action Items (one per line)</label>
-        <textarea id="momActions" class="form-control" rows="3" placeholder="Task 1&#10;Task 2&#10;Task 3"></textarea>
+        <label class="form-label">File <span id="docFileRequiredNote">*</span></label>
+        <input type="file" id="docFile" class="form-control"/>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('momModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveMOM()">Save MOM</button>
+      <button class="btn btn-secondary" onclick="closeModal('documentModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveDocBtn" onclick="saveDocument()">Upload</button>
     </div>
   </div>
 </div>
@@ -419,6 +450,41 @@
       <button class="btn btn-primary" id="importSubmitBtn" onclick="submitImport()" disabled>Import</button>
     </div>
   </div>
+</div>
+
+<!-- ── BULK-DELETE CONFIRMATION MODAL ── -->
+<div class="modal-overlay" id="bulkDeleteModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header" style="background:#FEF2F2;border-bottom:1px solid #FECACA;">
+      <h3 class="modal-title" style="color:#991B1B;">🗑️ Confirm Bulk Delete</h3>
+      <button class="modal-close" onclick="closeModal('bulkDeleteModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:#374151;line-height:1.6;">
+        You are about to permanently delete
+        <strong id="bulkDeleteCount" style="color:#DC2626;">0 students</strong>.
+        This action <strong>cannot be undone</strong> and will also remove all associated event registrations.
+      </p>
+      <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:.85rem 1rem;margin-top:.75rem;">
+        <p style="margin:0;font-size:.85rem;color:#991B1B;font-weight:600;">⚠️ This will delete all selected accounts from the database.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('bulkDeleteModal')">Cancel</button>
+      <button class="btn" id="confirmBulkDeleteBtn"
+        style="background:#DC2626;color:#fff;border:none;"
+        onclick="executeBulkDelete()">
+        Yes, Delete All
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Floating bulk-action toolbar -->
+<div class="bulk-toolbar" id="bulkToolbar">
+  <span class="bulk-toolbar-count"><span id="bulkCount">0</span> selected</span>
+  <button class="btn-bulk-delete" onclick="confirmBulkDelete()">🗑️ Delete Selected</button>
+  <button class="btn-bulk-clear" onclick="clearSelection()">✕ Clear</button>
 </div>
 
 <!-- jsQR for QR scanning -->
