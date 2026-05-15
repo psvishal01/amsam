@@ -1,39 +1,17 @@
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
-const { Resend } = require('resend');
 
-// ── Startup diagnostic ───────────────────────────────────────────
-if (process.env.RESEND_API_KEY) {
-  console.log('📧 Mailer configured via Resend API');
-} else if (process.env.MAIL_USER) {
-  console.log(`📧 Mailer configured via SMTP: ${process.env.MAIL_USER}`);
-} else {
-  console.error('❌ No mail credentials set! Add RESEND_API_KEY to Railway variables.');
-}
-
-// ── Send via Resend API (HTTPS — works on Railway) ───────────────
-async function sendViaResend(to, subject, html, attachments = []) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM || 'AMSAM Portal <onboarding@resend.dev>';
-  const payload = { from, to, subject, html };
-  if (attachments.length) payload.attachments = attachments;
-  const { error } = await resend.emails.send(payload);
-  if (error) throw new Error(`Resend error: ${error.message}`);
-}
-
-// ── Fallback: send via Gmail SMTP (localhost only) ───────────────
+// ── Send via Gmail SMTP (Works on Render) ────────────────────────
 function getTransporter() {
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    throw new Error('MAIL_USER or MAIL_PASS not configured.');
+    throw new Error('MAIL_USER or MAIL_PASS not configured in environment variables.');
   }
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    family: 4,
-    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-    tls: { rejectUnauthorized: false }
+    service: 'gmail',
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
   });
 }
 
@@ -159,21 +137,20 @@ async function sendReceiptEmail(opts) {
 </html>
   `.trim();
 
-  if (process.env.RESEND_API_KEY) {
-    // Resend doesn't support inline CID images — embed QR as base64 data URL
-    const qrDataUrl = `data:image/png;base64,${qrBuffer.toString('base64')}`;
-    const htmlWithDataUrl = html.replace('cid:event_qr_code', qrDataUrl);
-    await sendViaResend(toEmail, `✅ Payment Receipt – ${eventTitle}`, htmlWithDataUrl);
-  } else {
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
-      to: toEmail,
-      subject: `✅ Payment Receipt – ${eventTitle}`,
-      html,
-      attachments: [{ filename: 'qr_code.png', content: qrBuffer, cid: 'event_qr_code' }]
-    });
-  }
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
+    to: toEmail,
+    subject: `✅ Payment Receipt – ${eventTitle}`,
+    html,
+    attachments: [
+      {
+        filename: 'qr_code.png',
+        content: qrBuffer,
+        cid: 'event_qr_code',
+      }
+    ]
+  });
 }
 
 /**
@@ -284,17 +261,13 @@ async function sendWelcomeEmail(opts) {
 </html>
   `.trim();
 
-  if (process.env.RESEND_API_KEY) {
-    await sendViaResend(toEmail, '🎉 Welcome to AMSAM Portal – Your Login Credentials', html);
-  } else {
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
-      to: toEmail,
-      subject: '🎉 Welcome to AMSAM Portal – Your Login Credentials',
-      html,
-    });
-  }
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
+    to: toEmail,
+    subject: `🎉 Welcome to AMSAM Portal – Your Login Credentials`,
+    html,
+  });
 }
 
 module.exports = { sendReceiptEmail, sendWelcomeEmail };
