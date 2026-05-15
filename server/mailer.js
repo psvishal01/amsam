@@ -1,280 +1,172 @@
-const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 const QRCode = require('qrcode');
 
-// ── Send via Gmail OAuth2 (Works on all cloud hosts via HTTPS) ────
-function getTransporter() {
-  const { MAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = process.env;
+/**
+ * Creates an authorized Gmail API client.
+ */
+function getGmailClient() {
+  const { GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = process.env;
   
-  if (!MAIL_USER || !GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
-    throw new Error('Gmail OAuth2 credentials missing. Check GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.');
+  if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
+    throw new Error('Gmail API credentials missing.');
   }
 
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      type: 'OAuth2',
-      user: MAIL_USER,
-      clientId: GMAIL_CLIENT_ID,
-      clientSecret: GMAIL_CLIENT_SECRET,
-      refreshToken: GMAIL_REFRESH_TOKEN,
-    },
+  const oauth2Client = new google.auth.OAuth2(
+    GMAIL_CLIENT_ID,
+    GMAIL_CLIENT_SECRET,
+    'https://developers.google.com/oauthplayground'
+  );
+
+  oauth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
+  return google.gmail({ version: 'v1', auth: oauth2Client });
+}
+
+/**
+ * Helper to encode MIME messages for Gmail API.
+ */
+function encodeMessage(message) {
+  return Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/**
+ * Sends a welcome email with login credentials.
+ */
+async function sendWelcomeEmail(opts) {
+  const { toEmail, studentName, username, password, portalUrl = 'https://amsam-jo9k.onrender.com/index.html' } = opts;
+  const gmail = getGmailClient();
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .container { font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+    .header { background: #1a237e; color: white; padding: 20px; text-align: center; }
+    .content { padding: 30px; line-height: 1.6; color: #333; }
+    .creds { background: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #1a237e; }
+    .footer { background: #f9f9f9; padding: 20px; text-align: center; font-size: 12px; color: #666; }
+    .button { display: inline-block; padding: 12px 24px; background: #1a237e; color: white !important; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header"><h1>Welcome to AMSAM</h1></div>
+    <div class="content">
+      <p>Hello <strong>${studentName}</strong>,</p>
+      <p>Your account for the AMSAM Membership Portal has been created. You can now log in to register for events and manage your profile.</p>
+      <div class="creds">
+        <strong>Login Details:</strong><br>
+        Username: <code>${username}</code><br>
+        Password: <code>${password}</code>
+      </div>
+      <p>Please change your password after your first login for security.</p>
+      <a href="${portalUrl}" class="button">Log In to Portal</a>
+    </div>
+    <div class="footer">
+      Association of Medical Students of AIIMS Mangalagiri<br>
+      This is an automated message, please do not reply.
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  const str = [
+    `Content-Type: text/html; charset="UTF-8"\n`,
+    `MIME-Version: 1.0\n`,
+    `Content-Transfer-Encoding: 7bit\n`,
+    `to: ${toEmail}\n`,
+    `from: "AMSAM Portal" <${process.env.MAIL_USER}>\n`,
+    `subject: 🎉 Welcome to AMSAM Portal – Your Login Credentials\n\n`,
+    html
+  ].join('');
+
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw: encodeMessage(str) }
   });
 }
 
 /**
- * Sends a styled payment receipt email after a successful event registration.
- * @param {object} opts - { toEmail, studentName, eventTitle, eventDate, eventVenue, amountPaid, paymentId, qrCode }
+ * Sends a payment receipt with a QR code.
  */
 async function sendReceiptEmail(opts) {
   const { toEmail, studentName, eventTitle, eventDate, eventVenue, amountPaid, paymentId, qrCode } = opts;
-
-  const formattedDate = eventDate
-    ? new Date(eventDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-    : 'TBD';
-
-  const formattedAmount = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amountPaid);
-
-  // Generate QR code as a PNG buffer — use CID attachment (works in all email clients incl. Gmail)
-  const qrBuffer = await QRCode.toBuffer(qrCode, {
-    width: 200,
-    margin: 2,
-    color: { dark: '#1A2040', light: '#FFFFFF' }
-  });
+  const gmail = getGmailClient();
+  const qrBuffer = await QRCode.toBuffer(qrCode);
+  const boundary = "__BOUNDARY__";
 
   const html = `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Payment Receipt - AMSAM</title>
+  <style>
+    .container { font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+    .header { background: #2e7d32; color: white; padding: 20px; text-align: center; }
+    .content { padding: 30px; line-height: 1.6; color: #333; }
+    .qr-box { text-align: center; margin: 30px 0; padding: 20px; border: 2px dashed #ccc; background: #fff; }
+    .details { background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .footer { background: #f5f5f5; padding: 20px; text-align: center; font-size: 12px; color: #777; }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
+<body>
+  <div class="container">
+    <div class="header"><h2>Registration Confirmed</h2></div>
+    <div class="content">
+      <p>Dear ${studentName},</p>
+      <p>Thank you for registering for <strong>${eventTitle}</strong>. Your payment was successful.</p>
+      
+      <div class="details">
+        <strong>Event Details:</strong><br>
+        📅 Date: ${eventDate}<br>
+        📍 Venue: ${eventVenue}<br>
+        💰 Amount Paid: ₹${amountPaid}<br>
+        🆔 Payment ID: ${paymentId}
+      </div>
 
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#1A2040 0%,#009688 100%);padding:36px 40px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:1px;">AMSAM</h1>
-              <p style="margin:4px 0 0;color:rgba(255,255,255,0.75);font-size:13px;letter-spacing:2px;text-transform:uppercase;">AIIMS Mangalagiri Student Association of Medicine</p>
-            </td>
-          </tr>
-
-          <!-- Success Badge -->
-          <tr>
-            <td style="padding:32px 40px 0;text-align:center;">
-              <div style="display:inline-block;background:#e6f7f5;border:2px solid #009688;border-radius:50px;padding:10px 24px;">
-                <span style="color:#009688;font-weight:700;font-size:15px;">✅ Payment Successful</span>
-              </div>
-              <h2 style="margin:20px 0 4px;color:#1A2040;font-size:22px;">Your Registration is Confirmed!</h2>
-              <p style="margin:0;color:#64748b;font-size:14px;">Hi <strong>${studentName}</strong>, here is your receipt for the event below.</p>
-            </td>
-          </tr>
-
-          <!-- Event Card -->
-          <tr>
-            <td style="padding:28px 40px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-                <tr>
-                  <td style="background:#1A2040;padding:14px 20px;">
-                    <p style="margin:0;color:#ffffff;font-weight:700;font-size:16px;">${eventTitle}</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:20px;">
-                    <table width="100%" cellpadding="8" cellspacing="0">
-                      <tr>
-                        <td style="color:#64748b;font-size:13px;width:40%;">📅 Date</td>
-                        <td style="color:#1A2040;font-size:13px;font-weight:600;">${formattedDate}</td>
-                      </tr>
-                      <tr>
-                        <td style="color:#64748b;font-size:13px;">📍 Venue</td>
-                        <td style="color:#1A2040;font-size:13px;font-weight:600;">${eventVenue || 'To be announced'}</td>
-                      </tr>
-                      <tr>
-                        <td style="color:#64748b;font-size:13px;">💳 Amount Paid</td>
-                        <td style="color:#009688;font-size:15px;font-weight:700;">${formattedAmount}</td>
-                      </tr>
-                      <tr>
-                        <td style="color:#64748b;font-size:13px;">🔖 Payment ID</td>
-                        <td style="color:#1A2040;font-size:12px;font-family:monospace;">${paymentId}</td>
-                      </tr>
-                    </table>
-
-                    <!-- QR Code Image (CID inline attachment) -->
-                    <div style="text-align:center;margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0;">
-                      <p style="margin:0 0 12px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">🎫 Entry QR Code</p>
-                      <img src="cid:event_qr_code" alt="Entry QR Code" width="160" height="160" style="border-radius:8px;border:3px solid #1A2040;display:block;margin:0 auto;"/>
-                      <p style="margin:10px 0 0;color:#94a3b8;font-size:11px;font-family:monospace;">${qrCode}</p>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Info Note -->
-          <tr>
-            <td style="padding:0 40px 28px;">
-              <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;">
-                <p style="margin:0;color:#92400e;font-size:13px;line-height:1.6;">
-                  <strong>📌 Important:</strong> Please show the QR Code from your AMSAM portal profile at the event entrance for admission. Keep this email as proof of registration.
-                </p>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
-              <p style="margin:0;color:#94a3b8;font-size:12px;">This is an automated receipt from the AMSAM Portal.<br/>Please do not reply to this email.</p>
-              <p style="margin:8px 0 0;color:#009688;font-size:12px;font-weight:600;">AIIMS Mangalagiri · AMSAM Club</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
+      <div class="qr-box">
+        <p><strong>Your Entry Ticket (QR Code)</strong></p>
+        <img src="cid:event_qr_code" width="200" alt="QR Code">
+        <p><small>Please present this QR code at the venue for check-in.</small></p>
+      </div>
+    </div>
+    <div class="footer">
+      AMSAM Portal - AIIMS Mangalagiri
+    </div>
+  </div>
 </body>
 </html>
   `.trim();
 
-  const transporter = getTransporter();
-  await transporter.sendMail({
-    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
-    to: toEmail,
-    subject: `✅ Payment Receipt – ${eventTitle}`,
-    html,
-    attachments: [
-      {
-        filename: 'qr_code.png',
-        content: qrBuffer,
-        cid: 'event_qr_code',
-      }
-    ]
-  });
-}
+  const message = [
+    `Content-Type: multipart/related; boundary="${boundary}"\n`,
+    `MIME-Version: 1.0\n`,
+    `to: ${toEmail}\n`,
+    `from: "AMSAM Portal" <${process.env.MAIL_USER}>\n`,
+    `subject: ✅ Payment Receipt – ${eventTitle}\n\n`,
 
-/**
- * Sends a welcome email to a newly imported student with their login credentials.
- * @param {object} opts - { toEmail, studentName, username, password, portalUrl }
- */
-async function sendWelcomeEmail(opts) {
-  const { toEmail, studentName, username, password, portalUrl = 'https://amsam-production.up.railway.app/index.html' } = opts;
+    `--${boundary}\n`,
+    `Content-Type: text/html; charset="UTF-8"\n`,
+    `Content-Transfer-Encoding: 7bit\n\n`,
+    html + '\n\n',
 
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Welcome to AMSAM Portal</title>
-</head>
-<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
+    `--${boundary}\n`,
+    `Content-Type: image/png\n`,
+    `Content-Transfer-Encoding: base64\n`,
+    `Content-ID: <event_qr_code>\n`,
+    `Content-Disposition: inline; filename="qr.png"\n\n`,
+    qrBuffer.toString('base64') + '\n',
+    `--${boundary}--`
+  ].join('');
 
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#1A2040 0%,#009688 100%);padding:36px 40px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:1px;">AMSAM</h1>
-              <p style="margin:4px 0 0;color:rgba(255,255,255,0.75);font-size:13px;letter-spacing:2px;text-transform:uppercase;">AIIMS Mangalagiri Student Association of Medicine</p>
-            </td>
-          </tr>
-
-          <!-- Welcome Banner -->
-          <tr>
-            <td style="padding:32px 40px 0;text-align:center;">
-              <div style="display:inline-block;background:#e6f7f5;border:2px solid #009688;border-radius:50px;padding:10px 24px;">
-                <span style="color:#009688;font-weight:700;font-size:15px;">🎉 Welcome to the Portal!</span>
-              </div>
-              <h2 style="margin:20px 0 4px;color:#1A2040;font-size:22px;">Hi ${studentName}, your account is ready</h2>
-              <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6;">Your AMSAM member account has been created by the admin.<br/>Use the credentials below to log in for the first time.</p>
-            </td>
-          </tr>
-
-          <!-- Credentials Card -->
-          <tr>
-            <td style="padding:28px 40px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-                <tr>
-                  <td style="background:#1A2040;padding:14px 20px;">
-                    <p style="margin:0;color:#ffffff;font-weight:700;font-size:15px;">🔐 Your Login Credentials</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:24px;">
-                    <table width="100%" cellpadding="10" cellspacing="0">
-                      <tr>
-                        <td style="color:#64748b;font-size:13px;width:40%;">
-                          📧 Username / Email
-                        </td>
-                        <td style="background:#eef2ff;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:14px;color:#1A2040;font-weight:600;">
-                          ${username}
-                        </td>
-                      </tr>
-                      <tr><td colspan="2" style="padding:4px 0;"></td></tr>
-                      <tr>
-                        <td style="color:#64748b;font-size:13px;">
-                          🔑 Temporary Password
-                        </td>
-                        <td style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:16px;color:#c2410c;font-weight:700;letter-spacing:1px;">
-                          ${password}
-                        </td>
-                      </tr>
-                    </table>
-
-                    <!-- CTA Button -->
-                    <div style="text-align:center;margin-top:28px;">
-                      <a href="${portalUrl}" style="display:inline-block;background:linear-gradient(135deg,#1A2040,#009688);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;letter-spacing:0.5px;">Login to AMSAM Portal →</a>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Security Note -->
-          <tr>
-            <td style="padding:0 40px 28px;">
-              <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;">
-                <p style="margin:0;color:#92400e;font-size:13px;line-height:1.6;">
-                  <strong>📌 Important:</strong> Please change your password immediately after your first login for security. Keep your credentials private and do not share them with anyone.
-                </p>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
-              <p style="margin:0;color:#94a3b8;font-size:12px;">This is an automated email from the AMSAM Portal.<br/>Please do not reply to this email.</p>
-              <p style="margin:8px 0 0;color:#009688;font-size:12px;font-weight:600;">AIIMS Mangalagiri · AMSAM Club</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `.trim();
-
-  const transporter = getTransporter();
-  await transporter.sendMail({
-    from: `"AMSAM Portal" <${process.env.MAIL_USER}>`,
-    to: toEmail,
-    subject: `🎉 Welcome to AMSAM Portal – Your Login Credentials`,
-    html,
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw: encodeMessage(message) }
   });
 }
 
 module.exports = { sendReceiptEmail, sendWelcomeEmail };
-
