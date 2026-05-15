@@ -1,22 +1,23 @@
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
 
-// ── Send via Gmail SMTP port 587 (STARTTLS) ──────────────────────
+// ── Send via Gmail OAuth2 (Works on all cloud hosts via HTTPS) ────
 function getTransporter() {
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    throw new Error('MAIL_USER or MAIL_PASS not configured in environment variables.');
+  const { MAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = process.env;
+  
+  if (!MAIL_USER || !GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
+    throw new Error('Gmail OAuth2 credentials missing. Check GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.');
   }
+
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,      // STARTTLS
-    requireTLS: true,
+    service: 'gmail',
     auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
+      type: 'OAuth2',
+      user: MAIL_USER,
+      clientId: GMAIL_CLIENT_ID,
+      clientSecret: GMAIL_CLIENT_SECRET,
+      refreshToken: GMAIL_REFRESH_TOKEN,
     },
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
   });
 }
 
