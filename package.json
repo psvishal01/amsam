@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "description": "AMSAM Membership Portal - AIIMS Mangalagiri",
   "main": "server/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js",
-    "postinstall": "npm rebuild better-sqlite3"
+    "dev": "nodemon server/index.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
