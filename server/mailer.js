@@ -1,17 +1,22 @@
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
 
-// ── Send via Gmail SMTP (Works on Render) ────────────────────────
+// ── Send via Gmail SMTP port 587 (STARTTLS) ──────────────────────
 function getTransporter() {
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
     throw new Error('MAIL_USER or MAIL_PASS not configured in environment variables.');
   }
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,      // STARTTLS
+    requireTLS: true,
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
   });
 }
 
