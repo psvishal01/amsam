@@ -28,7 +28,7 @@ async function sendWelcomeEmail(opts) {
     studentName,
     username,
     password,
-    portalUrl = process.env.PORTAL_URL || 'https://amsam-jo9k.onrender.com/index.html',
+    portalUrl = process.env.PORTAL_URL || 'https://amsam-jo9k.onrender.com/',
   } = opts;
 
   const htmlContent = `
@@ -88,6 +88,7 @@ async function sendReceiptEmail(opts) {
   } = opts;
 
   const qrDataUrl = await QRCode.toDataURL(qrCode);
+  const base64Content = qrDataUrl.split(',')[1];
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -117,8 +118,8 @@ async function sendReceiptEmail(opts) {
       </div>
       <div class="qr-box">
         <p><strong>Your Entry Ticket (QR Code)</strong></p>
-        <img src="${qrDataUrl}" width="200" alt="QR Code">
-        <p><small>Present this QR code at the venue for check-in.</small></p>
+        <p>Your QR code is <strong>attached to this email</strong> as an image file.</p>
+        <p><small>Please download or open the attached QR code and present it at the venue for check-in.</small></p>
       </div>
     </div>
     <div class="footer">AMSAM Portal – AIIMS Mangalagiri</div>
@@ -131,6 +132,10 @@ async function sendReceiptEmail(opts) {
     to: [{ email: toEmail, name: studentName }],
     subject: `✅ Payment Receipt – ${eventTitle}`,
     htmlContent,
+    attachment: [{
+      name: 'ticket-qr.png',
+      content: base64Content
+    }],
   });
 }
 
