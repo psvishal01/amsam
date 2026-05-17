@@ -1,12 +1,24 @@
-const { Resend } = require('resend');
 const QRCode = require('qrcode');
 
-// ── Resend API client (uses HTTPS — works on all cloud hosts) ─────
-function getResendClient() {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY is not set in environment variables.');
+// ── Brevo Transactional Email API (HTTPS — works on all cloud hosts) ──
+async function brevoSend(payload) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY is not set in environment variables.');
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Brevo API error: ${JSON.stringify(err)}`);
   }
-  return new Resend(process.env.RESEND_API_KEY);
 }
 
 // ── Welcome Email ─────────────────────────────────────────────────
@@ -19,9 +31,7 @@ async function sendWelcomeEmail(opts) {
     portalUrl = process.env.PORTAL_URL || 'https://amsam-jo9k.onrender.com/index.html',
   } = opts;
 
-  const resend = getResendClient();
-
-  const html = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -56,16 +66,12 @@ async function sendWelcomeEmail(opts) {
 </body>
 </html>`;
 
-  const { error } = await resend.emails.send({
-    from: 'AMSAM Portal <onboarding@resend.dev>',
-    to: [toEmail],
+  await brevoSend({
+    sender: { name: 'AMSAM Portal', email: process.env.MAIL_USER },
+    to: [{ email: toEmail, name: studentName }],
     subject: '🎉 Welcome to AMSAM Portal – Your Login Credentials',
-    html,
+    htmlContent,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${JSON.stringify(error)}`);
-  }
 }
 
 // ── Receipt Email with QR Code ────────────────────────────────────
@@ -81,10 +87,9 @@ async function sendReceiptEmail(opts) {
     qrCode,
   } = opts;
 
-  const resend = getResendClient();
   const qrDataUrl = await QRCode.toDataURL(qrCode);
 
-  const html = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -121,16 +126,12 @@ async function sendReceiptEmail(opts) {
 </body>
 </html>`;
 
-  const { error } = await resend.emails.send({
-    from: 'AMSAM Portal <onboarding@resend.dev>',
-    to: [toEmail],
+  await brevoSend({
+    sender: { name: 'AMSAM Portal', email: process.env.MAIL_USER },
+    to: [{ email: toEmail, name: studentName }],
     subject: `✅ Payment Receipt – ${eventTitle}`,
-    html,
+    htmlContent,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${JSON.stringify(error)}`);
-  }
 }
 
 module.exports = { sendReceiptEmail, sendWelcomeEmail };
