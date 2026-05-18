@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Login — AMSAM Portal</title>
   <meta name="description" content="AMSAM Membership Portal — Login to access your membership dashboard, events and profile."/>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1A2040"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="AMSAM"/>
+  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
   <link rel="stylesheet" href="/css/global.css"/>
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
@@ -144,5 +151,12 @@
 </div>
 
 <script src="/js/auth.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(() => console.log('AMSAM PWA: Service Worker registered.'))
+      .catch((err) => console.warn('SW registration failed:', err));
+  }
+</script>
 </body>
 </html>
