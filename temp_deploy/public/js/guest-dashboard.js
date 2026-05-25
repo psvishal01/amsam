@@ -1,20 +1,17 @@
 if (!requireAuth()) { /* redirected */ }
 
 const user = getUser();
-if (user && user.role === 'guest') {
-  window.location.href = '/guest-dashboard.html';
-}
-
-document.getElementById('navName').textContent = user?.name || '';
+document.getElementById('navName').textContent = user?.name || 'Guest';
+document.getElementById('heroName').textContent = user?.name?.split(' ')[0] || 'Guest';
 renderNavAvatar(user || {});
 
-let allEvents = [], allDocuments = [], myRegistrations = [];
+let allEvents = [], myRegistrations = [];
 
 // Switch tabs
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  const tabName = tab === 'events' ? 'Events' : tab === 'registration' ? 'Registration' : 'Documents';
+  const tabName = tab === 'events' ? 'Events' : 'Registration';
   document.getElementById(`tab${tabName}`).classList.add('active');
   document.getElementById(`panel${tabName}`).classList.add('active');
 }
@@ -33,72 +30,6 @@ function renderEvents() {
     return;
   }
   grid.innerHTML = filtered.map(ev => {
-    const d = new Date(ev.event_date + 'T00:00:00');
-    const day   = isNaN(d) ? '--' : d.getDate();
-    const month = isNaN(d) ? '' : d.toLocaleString('default',{month:'short'}).toUpperCase();
-    return `<div class="event-card animate-in">
-      <div class="event-card-top">
-        <div class="event-day-box"><div class="event-day">${day}</div><div class="event-month">${month}</div></div>
-        <div>
-          <div class="event-card-title">${ev.title}</div>
-          <div class="event-card-venue">📍 ${ev.venue || 'Venue TBD'}</div>
-        </div>
-      </div>
-      <div class="event-card-body">
-        <p class="event-card-desc">${ev.description || 'No description available.'}</p>
-        <div class="event-meta">
-          <span class="event-meta-item">📅 ${ev.event_date || 'Date TBD'}</span>
-          <span class="event-meta-item">🕐 ${ev.event_time || 'Time TBD'}</span>
-          ${ev.created_by_name ? `<span class="event-meta-item">👤 By ${ev.created_by_name}</span>` : ''}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// Render Documents
-function renderDocuments() {
-  const q = (document.getElementById('docSearch')?.value || '').toLowerCase();
-  const category = document.getElementById('docCategoryFilter')?.value || 'All';
-  const filtered = allDocuments.filter(d =>
-    (category === 'All' || d.category === category) &&
-    (d.title.toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q))
-  );
-  const list = document.getElementById('documentsList');
-  if (!filtered.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><h3>No documents found</h3><p>Try a different search term or category.</p></div>`;
-    return;
-  }
-  list.innerHTML = filtered.map(d => `
-    <div class="mom-card animate-in">
-      <div class="mom-card-header">
-        <div class="mom-card-title">📄 ${d.title}</div>
-        <div class="mom-date-badge" style="background:var(--teal-pale);color:var(--teal-dark);">${d.category}</div>
-      </div>
-      <div class="mom-card-body">
-        ${d.description ? `<div class="mom-section-text" style="margin-bottom:1rem;">${d.description}</div>` : ''}
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <a href="${d.file_path}" target="_blank" class="btn btn-primary btn-sm" download>⬇️ Download File</a>
-          ${d.created_by_name ? `<span class="text-muted" style="font-size:.75rem">Uploaded by: ${d.created_by_name} · ${new Date(d.created_at).toLocaleDateString('en-IN')}</span>` : ''}
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// Render Registrations
-function renderRegistrations() {
-  const q = (document.getElementById('regSearch')?.value || '').toLowerCase();
-  const filtered = allEvents.filter(e =>
-    e.title.toLowerCase().includes(q) ||
-    (e.venue || '').toLowerCase().includes(q)
-  );
-  const grid = document.getElementById('regGrid');
-  if (!filtered.length) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎫</div><h3>No events found</h3><p>Try a different search term.</p></div>`;
-    return;
-  }
-  grid.innerHTML = filtered.map(ev => {
     const reg = myRegistrations.find(r => r.event_id === ev.id);
     const d = new Date(ev.event_date + 'T00:00:00');
     const day   = isNaN(d) ? '--' : d.getDate();
@@ -107,19 +38,16 @@ function renderRegistrations() {
     let actionHTML = '';
     if (reg) {
       actionHTML = `
-        <div style="margin-top:1rem; background:rgba(0,150,136,0.1); padding:1rem; border-radius:8px; text-align:center;">
-          <h4 style="margin-top:0; color:var(--teal); font-size:0.9rem;">You are registered</h4>
+        <div style="margin-top:1rem; background:rgba(0,150,136,0.1); padding:0.75rem 1rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--teal); font-weight:600; font-size:0.85rem;">✓ Registered</span>
           <button class="btn btn-secondary btn-sm" onclick="viewRegistrationQR('${reg.qr_code}', '${ev.title.replace(/'/g,"\\'")}')">View QR Code</button>
         </div>
       `;
     } else {
       actionHTML = `
-        <div style="margin-top:1rem; border-top:1px solid var(--border-light); padding-top:1rem;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-            <span style="font-size:0.85rem; color:var(--text-secondary)">Registration Fee:</span>
-            <span style="font-weight:bold;">₹${ev.fee || 0}</span>
-          </div>
-          <button class="btn btn-primary w-full" onclick="registerForEvent(${ev.id}, ${ev.fee || 0})">Register Now</button>
+        <div style="margin-top:1.1rem; border-top:1px solid var(--border-light); padding-top:0.8rem; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.88rem; font-weight:bold; color:var(--navy);">Fee: ₹${ev.fee || 0}</span>
+          <button class="btn btn-primary btn-sm" onclick="registerForEvent(${ev.id}, ${ev.fee || 0})">Register</button>
         </div>
       `;
     }
@@ -133,11 +61,54 @@ function renderRegistrations() {
         </div>
       </div>
       <div class="event-card-body">
-        <div class="event-meta" style="margin-top:0; padding-top:0; border-top:none;">
+        <p class="event-card-desc">${ev.description || 'No description available.'}</p>
+        <div class="event-meta">
           <span class="event-meta-item">📅 ${ev.event_date || 'Date TBD'}</span>
           <span class="event-meta-item">🕐 ${ev.event_time || 'Time TBD'}</span>
         </div>
         ${actionHTML}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Render Registrations
+function renderRegistrations() {
+  const q = (document.getElementById('regSearch')?.value || '').toLowerCase();
+  const filtered = myRegistrations.filter(r =>
+    r.title.toLowerCase().includes(q) ||
+    (r.venue || '').toLowerCase().includes(q)
+  );
+  const grid = document.getElementById('regGrid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎫</div><h3>No registered events</h3><p>Browse events and register to see them here.</p></div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(reg => {
+    const d = new Date(reg.event_date + 'T00:00:00');
+    const day   = isNaN(d) ? '--' : d.getDate();
+    const month = isNaN(d) ? '' : d.toLocaleString('default',{month:'short'}).toUpperCase();
+    
+    return `<div class="event-card animate-in">
+      <div class="event-card-top" style="background:linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);">
+        <div class="event-day-box" style="background:rgba(255,255,255,.2);"><div class="event-day">${day}</div><div class="event-month">${month}</div></div>
+        <div>
+          <div class="event-card-title">${reg.title}</div>
+          <div class="event-card-venue">📍 ${reg.venue || 'Venue TBD'}</div>
+        </div>
+      </div>
+      <div class="event-card-body">
+        <div class="event-meta" style="margin-top:0; padding-top:0; border-top:none;">
+          <span class="event-meta-item">📅 ${reg.event_date || 'Date TBD'}</span>
+          <span class="event-meta-item">🕐 ${reg.event_time || 'Time TBD'}</span>
+        </div>
+        <div style="margin-top:1.25rem; background:rgba(0,150,136,0.07); padding:1rem; border-radius:8px; text-align:center;">
+          <div style="display:flex; justify-content:center; align-items:center; gap:0.4rem; color:var(--teal); font-weight:700; font-size:0.9rem; margin-bottom:0.6rem;">
+            <span>🛡️ Valid Pass</span>
+            <span style="font-size:0.8rem; font-weight:normal; color:var(--text-muted);">(${reg.is_admitted ? 'Admitted' : 'Not Admitted'})</span>
+          </div>
+          <button class="btn btn-primary w-full btn-sm" onclick="viewRegistrationQR('${reg.qr_code}', '${reg.title.replace(/'/g,"\\'")}')">🎟️ View QR Admission Pass</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -148,7 +119,7 @@ async function registerForEvent(eventId, fee) {
   try {
     const orderData = await apiFetch(`/api/registrations/${eventId}/create-order`, { method: 'POST' });
     
-    // If it's a free event, it registers instantly without payment gateway
+    // Free event registers instantly
     if (orderData.is_free) {
       showToast('Successfully registered!', 'success');
       loadDashboard();
@@ -165,7 +136,7 @@ async function registerForEvent(eventId, fee) {
       amount: orderData.amount,
       currency: orderData.currency,
       name: "AMSAM",
-      description: "Event Registration",
+      description: "Guest Event Registration",
       order_id: orderData.orderId,
       handler: async function (response) {
         try {
@@ -209,17 +180,20 @@ function viewRegistrationQR(qrCode, eventTitle) {
   // Create modal dynamically
   const modalHTML = `
     <div class="modal-overlay open" id="qrModal" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="text-align:center;">
+      <div class="modal" style="text-align:center; max-width:420px;">
         <div class="modal-header">
           <h3 class="modal-title">${eventTitle}</h3>
           <button class="modal-close" onclick="document.getElementById('qrModal').remove()">✕</button>
         </div>
         <div class="modal-body">
-          <p class="text-muted mb-2">Show this QR code at the event for admission</p>
-          <img src="${qrUrl}" alt="Event QR Code" style="width:200px; height:200px; margin:0 auto; display:block; border:1px solid #eee; border-radius:8px; padding:10px; background:#fff;" />
+          <p class="text-muted mb-2" style="font-size:0.88rem;">Show this QR admission pass at the venue entrance</p>
+          <img src="${qrUrl}" alt="Event QR Code" style="width:200px; height:200px; margin:1.25rem auto; display:block; border:1px solid #eee; border-radius:8px; padding:10px; background:#fff;" />
+          <div style="background:var(--cream); padding:0.6rem; border-radius:6px; font-size:0.8rem; font-family:monospace; color:var(--text-secondary); word-break:break-all;">
+            ${qrCode}
+          </div>
         </div>
         <div class="modal-footer" style="justify-content:center;">
-          <button class="btn btn-primary" onclick="document.getElementById('qrModal').remove()">Close</button>
+          <button class="btn btn-primary" onclick="document.getElementById('qrModal').remove()">Close Pass</button>
         </div>
       </div>
     </div>
@@ -229,18 +203,14 @@ function viewRegistrationQR(qrCode, eventTitle) {
 
 async function loadDashboard() {
   try {
-    [allEvents, allDocuments, myRegistrations] = await Promise.all([
+    [allEvents, myRegistrations] = await Promise.all([
       apiFetch('/api/events'), 
-      apiFetch('/api/documents'),
       apiFetch('/api/registrations/my-registrations')
     ]);
     renderEvents();
-    renderDocuments();
     renderRegistrations();
-    // If URL has ?tab=documents, switch tab
-    if (new URLSearchParams(location.search).get('tab') === 'documents') switchTab('documents');
   } catch (err) {
-    showToast('Failed to load: ' + err.message, 'error');
+    showToast('Failed to load dashboard: ' + err.message, 'error');
   }
 }
 

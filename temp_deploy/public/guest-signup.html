@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Guest Sign Up — AMSAM Portal</title>
+  <meta name="description" content="Register as a guest to access AMSAM events and activities at AIIMS Mangalagiri." />
+  <link rel="stylesheet" href="/css/global.css" />
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f766e 100%);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    .signup-page {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative background blobs */
+    .signup-page::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(20, 184, 166, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+      top: -200px;
+      left: -100px;
+      border-radius: 50%;
+      z-index: 0;
+    }
+
+    .signup-page::after {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+      bottom: -150px;
+      right: -100px;
+      border-radius: 50%;
+      z-index: 0;
+    }
+
+    .signup-card {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      padding: 2.5rem;
+      position: relative;
+      z-index: 1;
+      animation: slideUp 0.4s ease-out forwards;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-logo {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-logo span {
+      background: var(--teal-dark);
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+    }
+
+    .signup-card-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .signup-card-header h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: .5rem;
+    }
+
+    .signup-card-header p {
+      font-size: .9rem;
+      color: #475569;
+      line-height: 1.5;
+    }
+
+    .signup-btn {
+      width: 100%;
+      padding: .85rem;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-top: .5rem;
+      border-radius: 8px;
+      background: var(--teal);
+      color: white;
+      border: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(20, 184, 166, 0.3);
+    }
+
+    .signup-btn:hover {
+      background: var(--teal-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 8px -1px rgba(20, 184, 166, 0.4);
+    }
+
+    .signup-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .signup-footer p {
+      font-size: .85rem;
+      color: #64748b;
+    }
+
+    .signup-footer a {
+      color: var(--teal-dark);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    .signup-footer a:hover {
+      color: var(--teal);
+      text-decoration: underline;
+    }
+
+    .error-msg {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #991B1B;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      font-size: .85rem;
+      margin-bottom: 1.25rem;
+      display: none;
+    }
+
+    .error-msg.show {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+
+    .success-msg {
+      background: #F0FDF4;
+      border: 1px solid #86EFAC;
+      color: #166534;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      font-size: .85rem;
+      margin-bottom: 1.25rem;
+      display: none;
+      text-align: center;
+    }
+
+    .success-msg.show {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+      text-align: left;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.4rem;
+    }
+
+    .input-icon-wrap {
+      position: relative;
+    }
+
+    .input-icon-wrap .form-control {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.75rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #1e293b;
+      background: #f8fafc;
+      transition: all 0.2s;
+      box-sizing: border-box;
+    }
+
+    .input-icon-wrap .form-control:focus {
+      background: #ffffff;
+      border-color: var(--teal);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+    }
+
+    .input-icon {
+      position: absolute;
+      left: .85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: .85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 1.1rem;
+      padding: 0;
+      transition: color 0.2s;
+    }
+
+    .password-toggle:hover {
+      color: var(--teal-dark);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media(max-width:500px) {
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .signup-card {
+        padding: 2rem 1.5rem;
+      }
+
+      .signup-card-header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="signup-page">
+    <div class="signup-card">
+      <div class="card-logo">
+        <span>AMSAM PORTAL</span>
+      </div>
+
+      <div class="signup-card-header">
+        <h1>Guest Registration</h1>
+        <p>Create your free guest account to register for events and access public documents.</p>
+      </div>
+
+      <div class="error-msg" id="errorMsg">⚠️ <span id="errorText"></span></div>
+      <div class="success-msg" id="successMsg">✅ <span id="successText"></span></div>
+
+      <form id="signupForm" autocomplete="off">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="gName">Full Name *</label>
+            <div class="input-icon-wrap">
+              <span class="input-icon">👤</span>
+              <input type="text" id="gName" class="form-control" placeholder="" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="gPhone">Phone Number</label>
+            <div class="input-icon-wrap">
+              <span class="input-icon">📱</span>
+              <input type="tel" id="gPhone" class="form-control" placeholder="10-digit number" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="gOrg">Organization / Institution</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🏥</span>
+            <input type="text" id="gOrg" class="form-control" placeholder="e.g. Government Medical College" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="gEmail">Email Address *</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">✉️</span>
+            <input type="email" id="gEmail" class="form-control" placeholder="your@email.com" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="gPassword">Create Password *</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="gPassword" class="form-control" placeholder="Min 6 characters" required />
+            <button type="button" class="password-toggle" id="togglePwd">👁️</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn signup-btn" id="signupBtn">
+          Create Guest Account
+        </button>
+      </form>
+
+      <div class="signup-footer">
+        <p>Already have an account? <a href="/index.html">Sign In here</a></p>
+      </div>
+    </div>
+  </div>a></p>
+  </div>
+  </div>
+  </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    // If already logged in, redirect
+    if (getToken()) {
+      const u = getUser();
+      window.location.href = u?.role === 'guest' ? '/guest-dashboard.html' : (isAdmin() ? '/admin.html' : '/home.html');
+    }
+
+    document.getElementById('togglePwd').addEventListener('click', function () {
+      const p = document.getElementById('gPassword');
+      p.type = p.type === 'password' ? 'text' : 'password';
+      this.textContent = p.type === 'password' ? '👁️' : '🙈';
+    });
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('signupBtn');
+      const errMsg = document.getElementById('errorMsg');
+      const errTxt = document.getElementById('errorText');
+      const sucMsg = document.getElementById('successMsg');
+      const sucTxt = document.getElementById('successText');
+
+      errMsg.classList.remove('show');
+      sucMsg.classList.remove('show');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Creating account…';
+
+      try {
+        const data = await apiFetch('/api/auth/guest-signup', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: document.getElementById('gName').value.trim(),
+            email: document.getElementById('gEmail').value.trim(),
+            password: document.getElementById('gPassword').value,
+            phone: document.getElementById('gPhone').value.trim(),
+            organization: document.getElementById('gOrg').value.trim()
+          })
+        });
+
+        saveSession(data.token, data.user);
+        sucTxt.textContent = 'Account created! Redirecting to your dashboard…';
+        sucMsg.classList.add('show');
+        setTimeout(() => { window.location.href = '/guest-dashboard.html'; }, 1500);
+      } catch (err) {
+        errTxt.textContent = err.message;
+        errMsg.classList.add('show');
+        btn.disabled = false;
+        btn.innerHTML = 'Create Guest Account';
+      }
+    });
+  </script>
+</body>
+
+</html>
