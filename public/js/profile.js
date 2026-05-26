@@ -63,24 +63,34 @@ async function loadProfile() {
       </div>`;
 
     // Populate membership card info
-    document.getElementById('mcName').textContent    = profile.name;
-    document.getElementById('mcCollegeId').innerHTML = `🎓 ${profile.college_id}`;
-    document.getElementById('mcDept').innerHTML      = `🏥 ${profile.department || 'MBBS'}`;
-    document.getElementById('mcBatch').innerHTML     = `📅 Batch ${profile.batch || '—'}`;
-    document.getElementById('mcEmail').innerHTML     = `✉️ ${profile.email}`;
-    document.getElementById('mcSince').textContent   = `Member since ${new Date(profile.created_at).toLocaleDateString('en-IN',{year:'numeric',month:'short'})}`;
+    document.getElementById('mcName').textContent = profile.name;
+    document.getElementById('mcInitials').textContent = profile.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('mcCollegeId').textContent = profile.college_id;
+    
+    // Convert year from batch, or default to some year
+    const currentYear = new Date().getFullYear();
+    const batchYear = profile.batch ? parseInt(profile.batch, 10) : currentYear - 2;
+    const yearDiff = currentYear - batchYear;
+    const yearStr = yearDiff === 1 ? '1st' : yearDiff === 2 ? '2nd' : yearDiff === 3 ? '3rd' : yearDiff === 4 ? '4th' : `${yearDiff}th`;
+    document.getElementById('mcDept').textContent = `${yearStr} Year ${profile.department || 'MBBS'}`;
+    
+    document.getElementById('mcValidTill').textContent = `Dec 31, ${batchYear + 5}`;
+    
+    document.getElementById('mcCardType').textContent = profile.role === 'guest' ? 'GUEST MEMBERSHIP CARD' : 'STUDENT MEMBERSHIP CARD';
 
     // Update membership card badge
-    const mcBadgeEl = document.querySelector('.mc-badge');
+    const mcBadgeEl = document.getElementById('mcBadge');
     if (mcBadgeEl) {
       if (profile.is_paid) {
-        mcBadgeEl.textContent = '✅ Paid Member';
-        mcBadgeEl.style.background   = 'rgba(16,185,129,.25)';
-        mcBadgeEl.style.borderColor  = 'rgba(16,185,129,.5)';
+        mcBadgeEl.textContent = profile.role === 'guest' ? 'GUEST' : 'ACTIVE';
+        mcBadgeEl.style.background = 'rgba(13,148,136,.3)';
+        mcBadgeEl.style.borderColor = '#0D9488';
+        mcBadgeEl.style.color = '#14B8A6';
       } else {
-        mcBadgeEl.textContent = '⏳ Pending';
-        mcBadgeEl.style.background   = 'rgba(245,158,11,.25)';
-        mcBadgeEl.style.borderColor  = 'rgba(245,158,11,.5)';
+        mcBadgeEl.textContent = 'PENDING';
+        mcBadgeEl.style.background = 'rgba(245,158,11,.3)';
+        mcBadgeEl.style.borderColor = '#F59E0B';
+        mcBadgeEl.style.color = '#FBBF24';
       }
     }
 
@@ -88,19 +98,25 @@ async function loadProfile() {
     if (profile.is_paid) {
       try {
         const qrData = await apiFetch(`/api/verify/${profile.id}/qr`);
-        document.getElementById('mcQR').innerHTML = `<img src="${qrData.qr}" alt="QR Code" style="width:100px;height:100px;"/>`;
+        document.getElementById('mcQR').innerHTML = `<img src="${qrData.qr}" alt="QR Code" style="width:130px;height:130px;border-radius:4px;"/>`;
       } catch(qrErr) {
-        document.getElementById('mcQR').innerHTML = `<div style="width:100px;height:100px;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#999;text-align:center;">QR Error</div>`;
+        document.getElementById('mcQR').innerHTML = `<div style="width:130px;height:130px;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:#999;text-align:center;">QR Error</div>`;
       }
+      document.getElementById('mcBackText').textContent = 'Official QR Pass';
+      document.getElementById('mcBackSub').textContent = 'Show this at event entry points';
+      
       const dlBtn = document.getElementById('dlBtn');
       if (dlBtn) dlBtn.style.display = 'inline-flex';
     } else {
       // Unpaid: show a lock placeholder instead of QR
       document.getElementById('mcQR').innerHTML = `
-        <div style="width:100px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:6px;">
-          <span style="font-size:1.8rem;">🔒</span>
-          <span style="font-size:.55rem;color:rgba(255,255,255,.6);margin-top:.25rem;text-align:center;line-height:1.3;">Fee not<br>paid</span>
+        <div style="width:130px;height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F3F4F6;border-radius:6px;border:1px dashed #D1D5DB;">
+          <span style="font-size:2rem;margin-bottom:0.5rem;">🔒</span>
+          <span style="font-size:.65rem;color:var(--text-muted);text-align:center;line-height:1.3;font-weight:600;">Payment<br>Pending</span>
         </div>`;
+      document.getElementById('mcBackText').textContent = 'Not Activated';
+      document.getElementById('mcBackSub').textContent = 'Pay fee to unlock QR code';
+
       const dlBtn = document.getElementById('dlBtn');
       if (dlBtn) dlBtn.style.display = 'none';
     }

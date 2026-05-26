@@ -52,38 +52,85 @@
     .info-label { font-size:.72rem; color:var(--text-muted); }
     .info-value { font-size:.88rem; font-weight:500; color:var(--navy); }
 
-    /* Membership QR Card */
-    .membership-card {
-      background:linear-gradient(135deg, #1A2040 0%, #2d3561 45%, #009688 100%);
-      border-radius:var(--radius-lg); padding:1.75rem;
-      color:#fff; position:relative; overflow:hidden;
-      box-shadow:var(--shadow-lg);
+    /* Membership QR Card (Flippable) */
+    .card-scene {
+      perspective: 1000px;
+      cursor: pointer;
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
     }
-    .membership-card::before {
-      content:''; position:absolute;
-      width:200px; height:200px; border-radius:50%;
-      background:rgba(255,255,255,.04); top:-60px; right:-60px;
+    .membership-card-inner {
+      position: relative;
+      width: 100%;
+      height: 230px;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
     }
-    .membership-card::after {
-      content:''; position:absolute;
-      width:140px; height:140px; border-radius:50%;
-      background:rgba(255,255,255,.04); bottom:-40px; left:-40px;
+    .card-scene.is-flipped .membership-card-inner {
+      transform: rotateY(180deg);
     }
-    .mc-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; }
-    .mc-logo { display:flex; align-items:center; gap:.5rem; }
-    .mc-logo-circle { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.7rem; }
-    .mc-logo-text { font-weight:800; font-size:.9rem; letter-spacing:.05em; }
-    .mc-badge { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.25); border-radius:var(--radius-pill); padding:.2rem .7rem; font-size:.7rem; }
-    .mc-body { display:flex; gap:1.5rem; align-items:center; }
-    .mc-qr { background:#fff; border-radius:var(--radius-sm); padding:.5rem; flex-shrink:0; }
-    .mc-qr img { width:100px; height:100px; display:block; }
-    .mc-qr-loading { width:100px; height:100px; display:flex; align-items:center; justify-content:center; }
-    .mc-info { flex:1; }
-    .mc-name   { font-size:1.1rem; font-weight:800; margin-bottom:.35rem; }
-    .mc-detail { font-size:.78rem; opacity:.8; margin-bottom:.2rem; display:flex; align-items:center; gap:.3rem; }
-    .mc-footer { margin-top:1.25rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,.15); display:flex; justify-content:space-between; align-items:center; }
-    .mc-member-since { font-size:.72rem; opacity:.6; }
-    .mc-scan-hint { font-size:.7rem; opacity:.7; text-align:right; }
+    .mc-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    
+    /* FRONT FACE */
+    .mc-front {
+      background: linear-gradient(135deg, #0C1F3D 0%, #1A3259 60%, #0D9488 100%);
+      color: #fff;
+    }
+    .mc-front::before {
+      content: ''; position: absolute;
+      width: 200px; height: 200px; border-radius: 50%;
+      background: rgba(255,255,255,0.04); top: -60px; right: -60px;
+    }
+    .mc-front::after {
+      content: ''; position: absolute;
+      width: 140px; height: 140px; border-radius: 50%;
+      background: rgba(255,255,255,0.04); bottom: -40px; left: -40px;
+    }
+    .mc-top { display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; position: relative; }
+    .mc-logo { display: flex; align-items: center; gap: .5rem; }
+    .mc-logo-circle { width: 28px; height: 28px; border-radius: 4px; background: #0D9488; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .65rem; color: #fff; }
+    .mc-logo-text { font-weight: 800; font-size: .75rem; letter-spacing: .05em; color: #14B8A6; }
+    .mc-subtext { font-size: .6rem; opacity: .7; letter-spacing: .05em; text-transform: uppercase; margin-top: .1rem; }
+    .mc-badge { background: rgba(13,148,136,.3); border: 1px solid #0D9488; color: #14B8A6; border-radius: var(--radius-pill); padding: .2rem .6rem; font-size: .65rem; font-weight: 600; }
+    
+    .mc-body { display: flex; gap: 1rem; align-items: flex-end; z-index: 10; position: relative; }
+    .mc-initials { width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, #0D9488, #14B8A6); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 700; color: #fff; box-shadow: var(--shadow-sm); }
+    .mc-info { flex: 1; }
+    .mc-name { font-size: 1.1rem; font-weight: 700; margin-bottom: .25rem; line-height: 1.2; }
+    .mc-detail { font-size: .75rem; opacity: .8; margin-bottom: .1rem; display: flex; align-items: center; gap: .3rem; }
+    
+    .mc-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; z-index: 10; position: relative; }
+    .mc-valid { font-size: .65rem; text-align: right; }
+    .mc-valid strong { display: block; font-size: .75rem; color: #F59E0B; }
+    
+    /* BACK FACE */
+    .mc-back {
+      background: #fff;
+      color: var(--navy);
+      transform: rotateY(180deg);
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-light);
+      text-align: center;
+    }
+    .mc-qr { background: #fff; padding: .5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+    .mc-qr img { width: 130px; height: 130px; display: block; }
+    .mc-qr-loading { width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
+    .mc-back-text { font-size: .8rem; font-weight: 600; margin-top: 1rem; }
+    .mc-back-sub { font-size: .7rem; color: var(--text-muted); margin-top: .25rem; }
 
     /* Change Password */
     .pw-card { background:var(--white); border-radius:var(--radius-md); border:1px solid var(--border-light); box-shadow:var(--shadow-sm); }
@@ -157,35 +204,48 @@
             <button class="btn btn-primary btn-sm" onclick="downloadCard()" id="dlBtn">⬇️ Download</button>
           </div>
           <div class="card-body">
-            <div class="membership-card" id="membershipCard">
-              <div class="mc-top">
-                <div class="mc-logo">
-                  <div class="mc-logo-circle">AM</div>
-                  <div>
-                    <div class="mc-logo-text">AMSAM</div>
-                    <div style="font-size:.6rem;opacity:.7;">AIIMS Mangalagiri</div>
+            <div class="card-scene" onclick="this.classList.toggle('is-flipped')">
+              <div class="membership-card-inner" id="membershipCard">
+                
+                <!-- FRONT OF CARD -->
+                <div class="mc-face mc-front">
+                  <div class="mc-top">
+                    <div class="mc-logo">
+                      <div class="mc-logo-circle">🛡️</div>
+                      <div>
+                        <div class="mc-logo-text">AMSAM · AIIMS MANGALAGIRI</div>
+                        <div class="mc-subtext" id="mcCardType">STUDENT MEMBERSHIP CARD</div>
+                      </div>
+                    </div>
+                    <div class="mc-badge" id="mcBadge">ACTIVE</div>
+                  </div>
+                  
+                  <div class="mc-body">
+                    <div class="mc-initials" id="mcInitials">?</div>
+                    <div class="mc-info">
+                      <div class="mc-name" id="mcName">Loading…</div>
+                      <div class="mc-detail" id="mcDept">3rd Year MBBS</div>
+                      <div class="mc-detail" id="mcCollegeId">AIIMS/MBBS/2024/089</div>
+                    </div>
+                    <div class="mc-valid">
+                      Valid till
+                      <strong id="mcValidTill">Dec 31, 2026</strong>
+                    </div>
                   </div>
                 </div>
-                <div class="mc-badge">Member</div>
-              </div>
-              <div class="mc-body">
-                <div class="mc-qr" id="mcQR">
-                  <div class="mc-qr-loading"><div class="spinner"></div></div>
+
+                <!-- BACK OF CARD (QR CODE) -->
+                <div class="mc-face mc-back">
+                  <div class="mc-qr" id="mcQR">
+                    <div class="mc-qr-loading"><div class="spinner"></div></div>
+                  </div>
+                  <div class="mc-back-text" id="mcBackText">Official QR Pass</div>
+                  <div class="mc-back-sub" id="mcBackSub">Show this at event entry points</div>
                 </div>
-                <div class="mc-info">
-                  <div class="mc-name" id="mcName">Loading…</div>
-                  <div class="mc-detail" id="mcCollegeId">🎓 —</div>
-                  <div class="mc-detail" id="mcDept">🏥 —</div>
-                  <div class="mc-detail" id="mcBatch">📅 Batch —</div>
-                  <div class="mc-detail" id="mcEmail">✉️ —</div>
-                </div>
-              </div>
-              <div class="mc-footer">
-                <span class="mc-member-since" id="mcSince">Member since —</span>
-                <span class="mc-scan-hint">Scan QR to verify membership</span>
+
               </div>
             </div>
-            <p class="text-muted mt-2" style="font-size:.78rem;text-align:center;">This card is your official AMSAM membership ID. Show it at events for verification.</p>
+            <p class="text-muted mt-3" style="font-size:.85rem;text-align:center;font-weight:500;">Tap the card to reveal QR code</p>
           </div>
         </div>
 
