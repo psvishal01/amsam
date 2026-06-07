@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" type="image/png" href="/icons/favicon.png">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Home — AMSAM Portal</title>
@@ -13,6 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="AMSAM"/>
   <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
   <link rel="stylesheet" href="/css/global.css"/>
+  <link rel="stylesheet" href="/css/3d-effects.css"/>
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
     main { flex:1; }
@@ -100,7 +102,7 @@
 <!-- NAVBAR -->
 <nav class="navbar">
   <a href="/home.html" class="nav-brand">
-    <div class="nav-logo-circle">AM</div>
+    <div class="nav-logo-circle"><img src="/icons/favicon.png" alt="AMSAM" style="width:100%;height:100%;object-fit:contain;border-radius:50%;"></div>
     <div class="nav-brand-info">
       <span class="nav-brand-name">AMSAM</span>
       <span class="nav-brand-sub">AIIMS Mangalagiri</span>
@@ -198,6 +200,7 @@
       .catch((err) => console.warn('SW registration failed:', err));
   }
 </script>
+<script src="/js/3d-effects.js"></script>
 </body>
 </html>
 

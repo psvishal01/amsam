@@ -39,7 +39,9 @@ router.post('/login', authLimiter, async (req, res) => {
         email: user.email,
         college_id: user.college_id,
         role: user.role,
-        photo_path: user.photo_path
+        photo_path: user.photo_path,
+        is_paid: user.is_paid || 0,
+        paid_at: user.paid_at || null
       }
     });
   } catch (err) {
@@ -82,7 +84,7 @@ router.post('/guest-signup', async (req, res) => {
       { expiresIn: '8h' }
     );
 
-    res.status(201).json({ token, user, message: 'Guest account created successfully' });
+    res.status(201).json({ token, user: { ...user, is_paid: 0 }, message: 'Guest account created successfully' });
   } catch (err) {
     console.error('Guest signup error:', err);
     res.status(500).json({ error: 'Server error during registration' });

@@ -11,6 +11,11 @@ function saveSession(token, user) {
   localStorage.setItem('amsam_user', JSON.stringify(user));
 }
 
+// Update stored user data without touching the token
+function saveUser(user) {
+  localStorage.setItem('amsam_user', JSON.stringify(user));
+}
+
 function logout() {
   localStorage.removeItem('amsam_token');
   localStorage.removeItem('amsam_user');

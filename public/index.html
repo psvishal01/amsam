@@ -1,22 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="icon" type="image/png" href="/icons/favicon.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Login — AMSAM Portal</title>
-  <meta name="description" content="AMSAM Membership Portal — Login to access your membership dashboard, events and profile."/>
+  <meta name="description"
+    content="AMSAM Membership Portal — Login to access your membership dashboard, events and profile." />
   <!-- PWA -->
-  <link rel="manifest" href="/manifest.json"/>
-  <meta name="theme-color" content="#1A2040"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="AMSAM"/>
-  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
-  <link rel="stylesheet" href="/css/global.css"/>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1A2040" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AMSAM" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/css/global.css" />
+  <link rel="stylesheet" href="/css/3d-effects.css" />
   <style>
-    body { 
+    body {
       margin: 0;
-      font-family: 'Inter', 'Outfit', sans-serif; 
+      font-family: 'Inter', 'Outfit', sans-serif;
       background: linear-gradient(135deg, #0C1F3D 0%, #1A3259 40%, #0D9488 100%);
       color: white;
       min-height: 100vh;
@@ -33,27 +37,36 @@
       pointer-events: none;
       z-index: 0;
     }
+
     .blob-1 {
       position: absolute;
-      top: -8rem; right: -8rem;
-      width: 24rem; height: 24rem;
+      top: -8rem;
+      right: -8rem;
+      width: 24rem;
+      height: 24rem;
       border-radius: 50%;
       background: #14B8A6;
       opacity: 0.1;
     }
+
     .blob-2 {
       position: absolute;
-      bottom: -10rem; left: -5rem;
-      width: 20rem; height: 20rem;
+      bottom: -10rem;
+      left: -5rem;
+      width: 20rem;
+      height: 20rem;
       border-radius: 50%;
       background: #F59E0B;
       opacity: 0.1;
     }
+
     .blob-3 {
       position: absolute;
-      top: 50%; left: 25%;
+      top: 50%;
+      left: 25%;
       transform: translateY(-50%);
-      width: 16rem; height: 16rem;
+      width: 16rem;
+      height: 16rem;
       border-radius: 50%;
       background: #ffffff;
       opacity: 0.05;
@@ -74,13 +87,13 @@
       justify-content: center;
       width: 5rem;
       height: 5rem;
-      border-radius: 1rem;
-      background: linear-gradient(135deg, #0D9488, #14B8A6);
       margin: 0 auto 1rem auto;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
     }
-    .header-logo svg {
-      width: 2.5rem; height: 2.5rem; color: white;
+
+    .header-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
     .page-title {
@@ -91,8 +104,9 @@
       margin: 0;
       line-height: 1.2;
     }
+
     .page-subtitle {
-      color: rgba(255,255,255,0.65);
+      color: rgba(255, 255, 255, 0.65);
       font-size: 0.9rem;
       text-align: center;
       margin-top: 0.25rem;
@@ -118,13 +132,14 @@
     .form-group {
       margin-bottom: 1rem;
     }
+
     .form-group label {
       display: block;
       color: rgba(255, 255, 255, 0.8);
       font-size: 0.875rem;
       margin-bottom: 0.25rem;
     }
-    
+
     .input-wrapper {
       position: relative;
     }
@@ -142,13 +157,16 @@
       outline: none;
       transition: all 0.2s;
     }
+
     .form-control::placeholder {
       color: rgba(255, 255, 255, 0.4);
     }
+
     .form-control:focus {
       border-color: #14B8A6;
       background: rgba(255, 255, 255, 0.15);
     }
+
     .form-control.has-icon {
       padding-right: 2.5rem;
     }
@@ -179,6 +197,7 @@
       margin-top: 0.5rem;
       transition: opacity 0.2s;
     }
+
     .login-btn:hover {
       opacity: 0.9;
     }
@@ -193,6 +212,7 @@
       margin-bottom: 1rem;
       display: none;
     }
+
     .error-msg.show {
       display: block;
     }
@@ -203,6 +223,7 @@
       color: rgba(255, 255, 255, 0.55);
       font-size: 0.875rem;
     }
+
     .guest-link a {
       color: #FBBF24;
       text-decoration: underline;
@@ -211,59 +232,57 @@
     }
   </style>
 </head>
+
 <body>
 
-<div class="background-blobs">
-  <div class="blob-1"></div>
-  <div class="blob-2"></div>
-  <div class="blob-3"></div>
-</div>
-
-<div class="login-container">
-  <div class="header-logo">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
-      <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
-      <circle cx="20" cy="10" r="2"/>
-    </svg>
+  <div class="background-blobs">
+    <div class="blob-1"></div>
+    <div class="blob-2"></div>
+    <div class="blob-3"></div>
   </div>
-  <h1 class="page-title">AMSAM Portal</h1>
-  <p class="page-subtitle">Association of Medical Students · AIIMS Mangalagiri</p>
 
-  <div class="login-card">
-    <h2>Sign In</h2>
+  <div class="login-container">
+    <div class="header-logo">
+      <img src="/icons/favicon.png" alt="AMSAM Logo" />
+    </div>
+    <h1 class="page-title">AMSAM Portal</h1>
+    <p class="page-subtitle">Association of Medical Students · AIIMS Mangalagiri</p>
 
-    <div class="error-msg" id="errorMsg">⚠️ <span id="errorText"></span></div>
+    <div class="login-card">
+      <h2>Sign In</h2>
 
-    <form id="loginForm" autocomplete="off">
-      <div class="form-group">
-        <label for="email">Email Address</label>
-        <input type="email" id="email" class="form-control" placeholder="you@aiims.edu" required/>
-      </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <div class="input-wrapper">
-          <input type="password" id="password" class="form-control has-icon" placeholder="••••••••" required/>
-          <button type="button" class="password-toggle" id="togglePwd">👁️</button>
+      <div class="error-msg" id="errorMsg">⚠️ <span id="errorText"></span></div>
+
+      <form id="loginForm" autocomplete="off">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" class="form-control" placeholder="you@aiims.edu" required />
         </div>
-      </div>
-      <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
-    </form>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <input type="password" id="password" class="form-control has-icon" placeholder="••••••••" required />
+            <button type="button" class="password-toggle" id="togglePwd">👁️</button>
+          </div>
+        </div>
+        <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+      </form>
 
-    <div class="guest-link">
-      External user? <a href="/guest-signup.html">Register as Guest</a>
+      <div class="guest-link">
+        External user? <a href="/guest-signup.html">Register as Guest</a>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="/js/auth.js"></script>
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-      .then(() => console.log('AMSAM PWA: Service Worker registered.'))
-      .catch((err) => console.warn('SW registration failed:', err));
-  }
-</script>
+  <script src="/js/auth.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('AMSAM PWA: Service Worker registered.'))
+        .catch((err) => console.warn('SW registration failed:', err));
+    }
+  </script>
+  <script src="/js/3d-effects.js"></script>
 </body>
-</html>
 
+</html>

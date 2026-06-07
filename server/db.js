@@ -135,6 +135,7 @@ async function initDB() {
           event_date  TEXT,
           event_time  TEXT,
           fee         INTEGER DEFAULT 0,
+          fee_member  INTEGER DEFAULT 0,
           created_by  INTEGER,
           visibility  TEXT CHECK(visibility IN ('student','all')) NOT NULL DEFAULT 'student',
           created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -185,6 +186,7 @@ async function initDB() {
 
       // Seed only if empty
       try { await pool.run("ALTER TABLE amsam_events ADD COLUMN visibility TEXT CHECK(visibility IN ('student','all')) NOT NULL DEFAULT 'student'"); } catch(e) {}
+      try { await pool.run("ALTER TABLE amsam_events ADD COLUMN fee_member INTEGER DEFAULT 0"); } catch(e) {}
       const row = await pool.get('SELECT COUNT(*) as c FROM amsam_users');
       const count = row ? row.c : 0;
 
@@ -246,6 +248,7 @@ async function initDB() {
           event_date  VARCHAR(50),
           event_time  VARCHAR(50),
           fee         INT DEFAULT 0,
+          fee_member  INT DEFAULT 0,
           created_by  INT,
           visibility  VARCHAR(50) NOT NULL DEFAULT 'student',
           created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -292,6 +295,7 @@ async function initDB() {
       try { await conn.query(`ALTER TABLE amsam_users MODIFY role ENUM('super_admin','sub_admin','student','guest') NOT NULL DEFAULT 'student'`); } catch(e) {}
       try { await conn.query(`ALTER TABLE amsam_users ADD COLUMN organization VARCHAR(255) DEFAULT NULL`); } catch(e) {}
       try { await conn.query(`ALTER TABLE amsam_events ADD COLUMN visibility VARCHAR(50) NOT NULL DEFAULT 'student'`); } catch(e) {}
+      try { await conn.query(`ALTER TABLE amsam_events ADD COLUMN fee_member INT DEFAULT 0`); } catch(e) {}
 
       // Seed only if empty
       const [[{ c }]] = await conn.query('SELECT COUNT(*) as c FROM amsam_users');

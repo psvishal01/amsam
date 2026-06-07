@@ -1,12 +1,18 @@
 if (!requireAuth()) { /* redirected */ }
 
-const user = getUser();
+let user = getUser();
 if (user && user.role === 'guest') {
   window.location.href = '/guest-dashboard.html';
 }
 
 document.getElementById('navName').textContent = user?.name || '';
 renderNavAvatar(user || {});
+
+// Show Admin Panel button for sub-admins and super-admins
+if (isAdmin()) {
+  const adminBtn = document.getElementById('adminPanelBtn');
+  if (adminBtn) adminBtn.style.display = 'inline';
+}
 
 let allEvents = [], allDocuments = [], myRegistrations = [];
 
@@ -113,13 +119,30 @@ function renderRegistrations() {
         </div>
       `;
     } else {
+      const isMember = user && user.is_paid == 1;
+      const memberFee    = (ev.fee_member !== undefined && ev.fee_member !== null) ? ev.fee_member : 0;
+      const nonMemberFee = ev.fee || 0;
+      const applicableFee = isMember ? memberFee : nonMemberFee;
+
+      const feeRowMember = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+          <span style="font-size:.78rem;color:var(--teal);font-weight:600;">💳 Member Fee:</span>
+          <span style="font-weight:700;color:var(--teal);">${memberFee === 0 ? 'FREE' : '\u20b9' + memberFee}</span>
+        </div>`;
+      const feeRowNonMember = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+          <span style="font-size:.78rem;color:var(--teal);font-weight:600;">🏷️ Non-Member Fee:</span>
+          <span style="font-weight:700;color:var(--teal);">${nonMemberFee === 0 ? 'FREE' : '\u20b9' + nonMemberFee}</span>
+        </div>`;
+      const yourFeeRow = `
+        <div style="background:rgba(0,150,136,.08);border-radius:6px;padding:.5rem .75rem;margin-bottom:.5rem;text-align:center;font-size:.8rem;font-weight:600;color:var(--teal-dark)">
+          ✅ Your price: ${applicableFee === 0 ? 'FREE' : '\u20b9' + applicableFee}
+        </div>`;
+
       actionHTML = `
         <div style="margin-top:1rem; border-top:1px solid var(--border-light); padding-top:1rem;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-            <span style="font-size:0.85rem; color:var(--text-secondary)">Registration Fee:</span>
-            <span style="font-weight:bold;">₹${ev.fee || 0}</span>
-          </div>
-          <button class="btn btn-primary w-full" onclick="registerForEvent(${ev.id}, ${ev.fee || 0})">Register Now</button>
+          ${feeRowMember}${feeRowNonMember}${yourFeeRow}
+          <button class="btn btn-primary w-full" onclick="registerForEvent(${ev.id}, ${applicableFee})">Register Now</button>
         </div>
       `;
     }
@@ -229,6 +252,13 @@ function viewRegistrationQR(qrCode, eventTitle) {
 
 async function loadDashboard() {
   try {
+    // Always fetch fresh user data so is_paid reflects latest admin changes
+    const freshUser = await apiFetch('/api/auth/me');
+    if (freshUser) {
+      user = { ...user, ...freshUser };
+      saveUser(user); // persist updated is_paid to localStorage
+    }
+
     [allEvents, allDocuments, myRegistrations] = await Promise.all([
       apiFetch('/api/events'), 
       apiFetch('/api/documents'),
@@ -239,6 +269,7 @@ async function loadDashboard() {
     renderRegistrations();
     // If URL has ?tab=documents, switch tab
     if (new URLSearchParams(location.search).get('tab') === 'documents') switchTab('documents');
+    if (new URLSearchParams(location.search).get('tab') === 'mom') switchTab('documents');
   } catch (err) {
     showToast('Failed to load: ' + err.message, 'error');
   }

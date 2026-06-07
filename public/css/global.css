@@ -69,10 +69,9 @@ body {
 }
 .nav-logo-circle {
   width: 46px; height: 46px; border-radius: 50%;
-  background: linear-gradient(135deg, #1a2040 0%, #009688 100%);
+  background: transparent;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: .9rem; color: #fff;
-  letter-spacing: .05em; flex-shrink: 0;
+  flex-shrink: 0; overflow: hidden;
 }
 .nav-brand-info { display: flex; flex-direction: column; }
 .nav-brand-name { font-weight: 800; font-size: 1rem; color: var(--navy); letter-spacing:.05em; }

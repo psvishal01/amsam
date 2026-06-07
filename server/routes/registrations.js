@@ -44,14 +44,38 @@ router.post('/:eventId/create-order', authenticate, async (req, res) => {
     );
     if (existing) return res.status(400).json({ error: 'Already registered for this event' });
 
+    // Determine correct fee: paid members get fee_member, others get fee
+    const user = await db.get('SELECT is_paid FROM amsam_users WHERE id = ?', [req.user.id]);
+    const isMember = user && user.is_paid === 1;
+    const applicableFee = isMember
+      ? (event.fee_member !== undefined && event.fee_member !== null ? event.fee_member : event.fee)
+      : event.fee;
+
     // Free event — register directly
-    if (!event.fee || event.fee === 0) {
+    if (!applicableFee || applicableFee === 0) {
       const qrCode = `AMSAM_EVENT_${crypto.randomUUID()}`;
       try {
         await db.run(
           'INSERT INTO amsam_registrations (user_id, event_id, qr_code, is_paid) VALUES (?, ?, ?, 1)',
           [req.user.id, eventId, qrCode]
         );
+
+        // Send confirmation email for free registrations too
+        const student = await db.get('SELECT name, email FROM amsam_users WHERE id = ?', [req.user.id]);
+        const eventDetails = await db.get('SELECT title, event_date, venue FROM amsam_events WHERE id = ?', [eventId]);
+        if (student && eventDetails) {
+          sendReceiptEmail({
+            toEmail:     student.email,
+            studentName: student.name,
+            eventTitle:  eventDetails.title,
+            eventDate:   eventDetails.event_date,
+            eventVenue:  eventDetails.venue,
+            amountPaid:  0,
+            paymentId:   'FREE',
+            qrCode,
+          }).catch(err => console.error('Free event confirmation email failed:', err.message));
+        }
+
         return res.status(201).json({ message: 'Registered successfully', is_free: true, qr_code: qrCode });
       } catch (err) {
         return res.status(500).json({ error: 'Failed to register' });
@@ -61,7 +85,7 @@ router.post('/:eventId/create-order', authenticate, async (req, res) => {
     // Paid event — create Razorpay order
     const razorpay = getRazorpayInstance();
     const order = await razorpay.orders.create({
-      amount: event.fee * 100,
+      amount: applicableFee * 100,
       currency: 'INR',
       receipt: `event_${eventId}_user_${req.user.id}`,
     });
@@ -71,7 +95,7 @@ router.post('/:eventId/create-order', authenticate, async (req, res) => {
       [order.id, req.user.id, eventId]
     );
 
-    res.json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID });
+    res.json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID, applicableFee });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Failed to create order' });
   }
@@ -182,6 +206,38 @@ router.post('/admit', authenticate, requireAdmin, async (req, res) => {
     res.json({ message: 'Student successfully admitted for the event' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/registrations/event/:eventId
+router.get('/event/:eventId', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const registrations = await db.all(`
+      SELECT r.id as registration_id, r.qr_code, r.is_paid, r.is_admitted, r.created_at,
+             u.id as user_id, u.name as user_name, u.email as user_email, u.phone as user_phone, 
+             u.college_id, u.role
+      FROM amsam_registrations r
+      JOIN amsam_users u ON r.user_id = u.id
+      WHERE r.event_id = ?
+      ORDER BY r.created_at DESC
+    `, [req.params.eventId]);
+    res.json(registrations);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch attendees' });
+  }
+});
+
+// PUT /api/registrations/:id/toggle-admit
+router.put('/:id/toggle-admit', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const registration = await db.get('SELECT * FROM amsam_registrations WHERE id = ?', [req.params.id]);
+    if (!registration) return res.status(404).json({ error: 'Registration not found' });
+
+    const newStatus = registration.is_admitted ? 0 : 1;
+    await db.run('UPDATE amsam_registrations SET is_admitted = ? WHERE id = ?', [newStatus, registration.id]);
+    res.json({ message: 'Admission status updated', is_admitted: newStatus });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to toggle admission' });
   }
 });
 

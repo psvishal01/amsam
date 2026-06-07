@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amsam-v2';
+const CACHE_NAME = 'amsam-v3';
 
 // Core assets to cache so the app shell loads fast
 const STATIC_ASSETS = [

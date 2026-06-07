@@ -1,0 +1,264 @@
+/* =====================================================
+   AMSAM Portal — 3D Effects Layer
+   Layered on top of global.css — no features removed
+   ===================================================== */
+
+/* ── 3D CARD TILT SYSTEM ──────────────────────────── */
+.tilt-card {
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  will-change: transform;
+}
+.tilt-card:hover {
+  box-shadow: 0 20px 60px rgba(26,32,64,.22), 0 6px 20px rgba(0,150,136,.15);
+}
+.tilt-card .card-inner {
+  transform: translateZ(12px);
+  transform-style: preserve-3d;
+}
+.tilt-card .card-icon-3d {
+  transform: translateZ(20px);
+  transition: transform 0.2s ease;
+}
+.tilt-card:hover .card-icon-3d {
+  transform: translateZ(30px) scale(1.05);
+}
+
+/* ── 3D FLOATING ANIMATION ────────────────────────── */
+@keyframes float3d {
+  0%   { transform: translateY(0px) rotateX(0deg); }
+  33%  { transform: translateY(-8px) rotateX(2deg); }
+  66%  { transform: translateY(-4px) rotateX(-1deg); }
+  100% { transform: translateY(0px) rotateX(0deg); }
+}
+@keyframes float3d-slow {
+  0%   { transform: translateY(0px) translateZ(0); }
+  50%  { transform: translateY(-12px) translateZ(8px); }
+  100% { transform: translateY(0px) translateZ(0); }
+}
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(60px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(60px) rotate(-360deg); }
+}
+@keyframes pulse3d {
+  0%,100% { transform: scale(1) translateZ(0); box-shadow: 0 0 0 0 rgba(0,150,136,.4); }
+  50%     { transform: scale(1.04) translateZ(10px); box-shadow: 0 0 0 12px rgba(0,150,136,0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes countUp {
+  from { opacity:0; transform: translateY(20px) scale(0.8); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+
+.float-anim       { animation: float3d 4s ease-in-out infinite; }
+.float-anim-slow  { animation: float3d-slow 6s ease-in-out infinite; }
+.pulse-anim       { animation: pulse3d 2.5s ease-in-out infinite; }
+
+/* ── 3D NAVBAR DEPTH ──────────────────────────────── */
+.navbar {
+  background: rgba(255,255,255,0.96) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(26,32,64,.08) !important;
+  box-shadow: 0 4px 24px rgba(26,32,64,.10), 0 1px 0 rgba(255,255,255,.8) !important;
+}
+.nav-logo-circle {
+  box-shadow: 0 4px 15px rgba(0,150,136,.35), inset 0 1px 0 rgba(255,255,255,.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+.nav-logo-circle:hover {
+  transform: rotate(-8deg) scale(1.08);
+  box-shadow: 0 8px 25px rgba(0,150,136,.45);
+}
+
+/* ── 3D BUTTONS ───────────────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, #0D9488, #00796B) !important;
+  box-shadow: 0 4px 14px rgba(0,150,136,.4), inset 0 1px 0 rgba(255,255,255,.15) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+.btn-primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0,150,136,.5), inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+.btn-primary:active {
+  transform: translateY(0px) scale(0.98) !important;
+}
+
+/* ── 3D CARDS ─────────────────────────────────────── */
+.card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+  background: linear-gradient(145deg, #ffffff, #f8f7f4) !important;
+  box-shadow: 0 2px 8px rgba(26,32,64,.08), inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+.card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 40px rgba(26,32,64,.14), inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+/* ── 3D NAV CARDS (home.html) ─────────────────────── */
+.nav-card {
+  perspective: 800px !important;
+  transform-style: preserve-3d !important;
+  transition: transform 0.3s cubic-bezier(.25,.8,.25,1), box-shadow 0.3s ease !important;
+  background: linear-gradient(145deg, #ffffff 0%, #f8f7f4 100%) !important;
+  box-shadow: 0 4px 20px rgba(26,32,64,.08), 0 1px 3px rgba(26,32,64,.06) !important;
+  position: relative;
+  overflow: hidden;
+}
+.nav-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--teal), var(--gold), var(--teal));
+  background-size: 200% 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+.nav-card:hover::before {
+  transform: scaleX(1);
+}
+.nav-card:hover {
+  transform: translateY(-8px) rotateX(4deg) !important;
+  box-shadow: 0 20px 60px rgba(26,32,64,.18), 0 0 0 1px rgba(0,150,136,.15) !important;
+}
+.nav-card-icon {
+  transition: transform 0.3s cubic-bezier(.25,.8,.25,1);
+}
+.nav-card:hover .nav-card-icon {
+  transform: scale(1.15) rotateY(10deg);
+}
+
+/* ── 3D HERO BANNER ───────────────────────────────── */
+.page-hero, .home-hero {
+  position: relative;
+  overflow: hidden;
+}
+.page-hero::after, .home-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(0,150,136,.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(230,184,0,.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ── STATS STRIP 3D ───────────────────────────────── */
+.stats-strip {
+  background: linear-gradient(135deg, #0C1F3D, #1A3259) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 -4px 20px rgba(0,0,0,.2) !important;
+}
+.stat-item {
+  transition: background 0.2s ease, transform 0.2s ease;
+  position: relative;
+}
+.stat-item:hover {
+  background: rgba(255,255,255,.04);
+}
+.stat-num {
+  animation: countUp 0.6s ease both;
+  display: inline-block !important;
+}
+
+/* ── 3D GLASSMORPHIC PANEL ────────────────────────── */
+.glass-panel {
+  background: rgba(255,255,255,.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: var(--radius-lg);
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,.2),
+    inset 0 1px 0 rgba(255,255,255,.25),
+    inset 0 -1px 0 rgba(0,0,0,.1);
+}
+
+/* ── MODAL 3D ENTRANCE ────────────────────────────── */
+@keyframes modal3dIn {
+  from {
+    opacity: 0;
+    transform: perspective(800px) rotateX(-15deg) translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(800px) rotateX(0deg) translateY(0) scale(1);
+  }
+}
+.modal {
+  animation: modal3dIn 0.3s cubic-bezier(.25,.8,.25,1) !important;
+  box-shadow: 0 30px 80px rgba(26,32,64,.3), 0 0 0 1px rgba(255,255,255,.05) !important;
+}
+
+/* ── 3D BADGE ─────────────────────────────────────── */
+.badge {
+  box-shadow: 0 2px 6px rgba(0,0,0,.1), inset 0 1px 0 rgba(255,255,255,.3) !important;
+  transition: transform 0.2s ease !important;
+}
+.badge:hover {
+  transform: scale(1.05) !important;
+}
+
+/* ── 3D TABLE ROWS ────────────────────────────────── */
+tr {
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+tr:hover td {
+  background: linear-gradient(90deg, var(--cream), rgba(0,150,136,.05), var(--cream)) !important;
+}
+
+/* ── 3D FORM INPUTS ───────────────────────────────── */
+.form-control:focus {
+  box-shadow: 0 0 0 3px rgba(0,150,136,.12), 0 4px 12px rgba(0,150,136,.08) !important;
+  transform: translateY(-1px);
+}
+
+/* ── SHIMMER LOADING EFFECT ───────────────────────── */
+.shimmer {
+  background: linear-gradient(90deg, var(--cream-dark) 25%, var(--cream) 50%, var(--cream-dark) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── 3D SCROLLBAR ─────────────────────────────────── */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--teal), var(--teal-dark)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+}
+
+/* ── DEPTH GLOW ON ACTIVE NAV LINK ───────────────── */
+.nav-link.active {
+  box-shadow: 0 4px 14px rgba(230,184,0,.3), inset 0 1px 0 rgba(255,255,255,.4) !important;
+  transform: translateY(-1px);
+}
+
+/* ── 3D FOOTER ────────────────────────────────────── */
+.footer {
+  background: linear-gradient(135deg, #0C1F3D, #1A2040) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important;
+}
+
+/* ── PERSPECTIVE WRAPPER ──────────────────────────── */
+.perspective-wrap {
+  perspective: 1200px;
+  perspective-origin: center;
+}

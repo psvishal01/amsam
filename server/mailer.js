@@ -28,7 +28,7 @@ async function sendWelcomeEmail(opts) {
     studentName,
     username,
     password,
-    portalUrl = process.env.PORTAL_URL || 'https://amsam-jo9k.onrender.com/',
+    portalUrl = process.env.PORTAL_URL || 'http://localhost:3000',
   } = opts;
 
   const htmlContent = `
@@ -108,13 +108,13 @@ async function sendReceiptEmail(opts) {
     <div class="header"><h2>Registration Confirmed ✅</h2></div>
     <div class="content">
       <p>Dear <strong>${studentName}</strong>,</p>
-      <p>Thank you for registering for <strong>${eventTitle}</strong>. Your payment was successful.</p>
+      <p>${amountPaid === 0 ? `You have been successfully registered for <strong>${eventTitle}</strong>. This is a <strong>free event</strong> — no payment required!` : `Thank you for registering for <strong>${eventTitle}</strong>. Your payment was successful.`}</p>
       <div class="details">
         <strong>Event Details:</strong><br>
         📅 Date: ${eventDate}<br>
         📍 Venue: ${eventVenue}<br>
-        💰 Amount Paid: ₹${amountPaid}<br>
-        🆔 Payment ID: ${paymentId}
+        💰 Amount: ${amountPaid === 0 ? '<strong>Free</strong>' : `₹${amountPaid}`}<br>
+        🆔 ${paymentId === 'FREE' ? 'Entry Type: Free Registration' : `Payment ID: ${paymentId}`}
       </div>
       <div class="qr-box">
         <p><strong>Your Entry Ticket (QR Code)</strong></p>
@@ -130,7 +130,7 @@ async function sendReceiptEmail(opts) {
   await brevoSend({
     sender: { name: 'AMSAM Portal', email: process.env.MAIL_USER },
     to: [{ email: toEmail, name: studentName }],
-    subject: `✅ Payment Receipt – ${eventTitle}`,
+    subject: amountPaid === 0 ? `✅ Registration Confirmed – ${eventTitle}` : `✅ Payment Receipt – ${eventTitle}`,
     htmlContent,
     attachment: [{
       name: 'ticket-qr.png',

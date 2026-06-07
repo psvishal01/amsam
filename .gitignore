@@ -5,3 +5,10 @@ server/uploads/
 server/amsam.db
 server/amsam.db-shm
 server/amsam.db-wal
+*.zip
+*.db
+check-recent.js
+test-multer.js
+test-multer-field.js
+check_schema.js
+server/.restart-trigger

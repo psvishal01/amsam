@@ -93,16 +93,23 @@ router.get('/:id', authenticate, async (req, res) => {
 // ── POST /api/users ───────────────────────────────────────────────
 router.post('/', authenticate, requireSuperAdmin, async (req, res) => {
   try {
-    const { name, college_id, email, password, batch, department, phone } = req.body;
-    if (!name || !college_id || !email || !password) {
-      return res.status(400).json({ error: 'name, college_id, email, password are required' });
+    const { name, college_id, email, password, batch, department, phone, role, organization } = req.body;
+    const userRole = role || 'student';
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'name, email, password are required' });
     }
+    if (userRole === 'student' && !college_id) {
+      return res.status(400).json({ error: 'college_id is required for students' });
+    }
+    
+    const finalCollegeId = (userRole === 'guest' && !college_id) ? ('GUEST_' + Date.now()) : college_id;
     const hash = bcrypt.hashSync(password, 10);
     const result = await db.run(
-      'INSERT INTO amsam_users (name, college_id, email, password_hash, role, batch, department, phone) VALUES (?,?,?,?,?,?,?,?)',
-      [name, college_id, email.toLowerCase(), hash, 'student', batch || null, department || null, phone || null]
+      'INSERT INTO amsam_users (name, college_id, email, password_hash, role, batch, department, phone, organization) VALUES (?,?,?,?,?,?,?,?,?)',
+      [name, finalCollegeId, email.toLowerCase(), hash, userRole, batch || null, department || null, phone || null, organization || null]
     );
-    res.status(201).json({ message: 'Student created', id: result.insertId });
+    res.status(201).json({ message: 'User created', id: result.insertId });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or College ID already exists' });
     res.status(500).json({ error: 'Server error' });
@@ -112,19 +119,21 @@ router.post('/', authenticate, requireSuperAdmin, async (req, res) => {
 // ── PUT /api/users/:id ────────────────────────────────────────────
 router.put('/:id', authenticate, requireSuperAdmin, async (req, res) => {
   try {
-    const { name, college_id, email, batch, department, phone } = req.body;
+    const { name, college_id, email, batch, department, phone, role, organization } = req.body;
     const user = await db.get('SELECT * FROM amsam_users WHERE id = ?', [req.params.id]);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     await db.run(
-      'UPDATE amsam_users SET name=?, college_id=?, email=?, batch=?, department=?, phone=? WHERE id=?',
+      'UPDATE amsam_users SET name=?, college_id=?, email=?, batch=?, department=?, phone=?, role=?, organization=? WHERE id=?',
       [
         name || user.name,
         college_id || user.college_id,
         email ? email.toLowerCase() : user.email,
-        batch || user.batch,
-        department || user.department,
-        phone || user.phone,
+        batch !== undefined ? batch : user.batch,
+        department !== undefined ? department : user.department,
+        phone !== undefined ? phone : user.phone,
+        role || user.role,
+        organization !== undefined ? organization : user.organization,
         req.params.id
       ]
     );

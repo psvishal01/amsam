@@ -9,6 +9,18 @@ if (badge) {
   badge.className   = `badge ${adminUser?.role === 'super_admin' ? 'badge-admin' : 'badge-subadmin'}`;
 }
 
+// Show "My Dashboard" link for sub-admins (they are also students)
+if (!isSuperAdmin()) {
+  const dashBtn = document.getElementById('myDashboardBtn');
+  if (dashBtn) dashBtn.style.display = 'inline';
+
+  // Hide Events and Documents tabs — sub-admins don't need these
+  ['tabEvents', 'tabDocuments'].forEach(id => {
+    const tab = document.getElementById(id);
+    if (tab) tab.style.display = 'none';
+  });
+}
+
 // Lock "Add Student" and "Import Excel" buttons for sub-admins
 if (!isSuperAdmin()) {
   const btn = document.getElementById('addStudentBtn');
@@ -389,14 +401,19 @@ function renderEventsTable() {
   document.getElementById('eventsTable').innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Title</th><th>Date</th><th>Time</th><th>Venue</th><th>Fee</th><th>Visible To</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Title</th><th>Date</th><th>Time</th><th>Venue</th><th>Member Fee</th><th>Non-Member Fee</th><th>Visible To</th><th>Actions</th></tr></thead>
         <tbody>
           ${events.map(e => `<tr>
             <td style="font-weight:500;max-width:260px">${e.title}</td>
             <td style="white-space:nowrap">${e.event_date||'—'}</td>
             <td style="white-space:nowrap">${e.event_time||'—'}</td>
             <td style="font-size:.83rem;max-width:200px">${e.venue||'—'}</td>
-            <td style="white-space:nowrap">₹${e.fee||0}</td>
+            <td style="white-space:nowrap">
+              <span class="badge badge-paid">₹${e.fee_member || 0}</span>
+            </td>
+            <td style="white-space:nowrap">
+              <span class="badge badge-unpaid">₹${e.fee || 0}</span>
+            </td>
             <td>
               <span class="badge ${e.visibility === 'all' ? 'badge-paid' : 'badge-subadmin'}">
                 ${e.visibility === 'all' ? '🙋 All' : '👥 Students'}
@@ -404,7 +421,8 @@ function renderEventsTable() {
             </td>
             <td>
               <div style="display:flex;gap:.4rem">
-                <button class="btn btn-secondary btn-sm" onclick="editEvent(${e.id})">✏️ Edit</button>
+                <button class="btn btn-secondary btn-sm" onclick="viewAttendees(${e.id}, '${e.title.replace(/'/g,"\\'")}')" title="View Attendees">👥</button>
+                <button class="btn btn-secondary btn-sm" onclick="editEvent(${e.id})">✏️</button>
                 <button class="btn btn-danger btn-sm"    onclick="deleteEvent(${e.id},'${e.title.replace(/'/g,"\\'")}')">🗑️</button>
               </div>
             </td>
@@ -412,6 +430,82 @@ function renderEventsTable() {
         </tbody>
       </table>
     </div>`;
+}
+
+// -- Attendees Logic --
+let currentEventAttendees = [];
+let currentEventIdForAttendees = null;
+
+async function viewAttendees(eventId, eventTitle) {
+  currentEventIdForAttendees = eventId;
+  document.getElementById('attendeesModalTitle').textContent = `Attendees: ${eventTitle}`;
+  openModal('attendeesModal');
+  document.getElementById('attendeesTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
+  
+  try {
+    currentEventAttendees = await apiFetch(`/api/registrations/event/${eventId}`);
+    renderAttendeesTable();
+  } catch(e) {
+    document.getElementById('attendeesTableBody').innerHTML = `<tr><td colspan="6" style="text-align:center;color:red;">Error loading attendees: ${e.message}</td></tr>`;
+  }
+}
+
+function renderAttendeesTable() {
+  const tbody = document.getElementById('attendeesTableBody');
+  if (!currentEventAttendees.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No registrations for this event yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = currentEventAttendees.map(r => {
+    const isAdmitted = r.is_admitted === 1;
+    const admissionBadge = isAdmitted 
+      ? `<span class="badge badge-paid">✅ Admitted</span>` 
+      : `<span class="badge badge-unpaid">⏳ Not Admitted</span>`;
+    
+    return `<tr>
+      <td style="font-weight:500;">${r.user_name}</td>
+      <td style="font-size:0.85rem; color:var(--text-muted);">
+        <div>✉️ ${r.user_email}</div>
+        ${r.user_phone ? `<div>📞 ${r.user_phone}</div>` : ''}
+      </td>
+      <td>
+        <div><span class="badge ${r.role === 'guest' ? 'badge-subadmin' : 'badge-student'}">${r.role}</span></div>
+        <div style="font-size:0.8rem; margin-top:4px;">${r.college_id || 'N/A'}</div>
+      </td>
+      <td>
+        ${r.is_paid ? '<span class="badge badge-paid">💳 Member</span>' : '<span class="badge badge-unpaid">🏷️ Guest/Non-Member</span>'}
+      </td>
+      <td>${admissionBadge}</td>
+      <td>
+        <button class="btn btn-sm ${isAdmitted ? 'btn-secondary' : 'btn-primary'}" 
+                onclick="toggleAdmission(${r.registration_id}, '${r.user_name.replace(/'/g, "\\'")}')" 
+                ${isAdmitted ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+          ${isAdmitted ? 'Manual Entry Done' : 'Admit Manually'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleAdmission(regId, name) {
+  if (!confirm(`Are you sure you want to manually admit ${name}? This action cannot be undone.`)) {
+    return; // Cancelled by user
+  }
+
+  try {
+    const res = await apiFetch(`/api/registrations/${regId}/toggle-admit`, { method: 'PUT' });
+    showToast('Student admitted successfully', 'success');
+    
+    // Update local state and re-render to avoid full refetch
+    const attendee = currentEventAttendees.find(a => a.registration_id === regId);
+    if (attendee) {
+      attendee.is_admitted = 1; // Force to 1 instead of relying on toggle since undo is disabled
+      renderAttendeesTable();
+    }
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
+  }
 }
 
 function toggleVisibilityCheckbox(type) {
@@ -428,20 +522,22 @@ function openEventModal(id = null) {
   document.getElementById('eventModalTitle').textContent = id ? 'Edit Event' : 'Add Event';
   document.getElementById('eventId').value = id || '';
   if (!id) {
-    ['evTitle','evDate','evTime','evVenue','evDesc','evFee'].forEach(f => { if(document.getElementById(f)) document.getElementById(f).value=''; });
+    ['evTitle','evDate','evTime','evVenue','evDesc','evFee','evFeeMember'].forEach(f => { if(document.getElementById(f)) document.getElementById(f).value=''; });
     document.getElementById('evFee').value = '0';
+    document.getElementById('evFeeMember').value = '0';
     document.getElementById('evVisibilityStudent').checked = true;
     document.getElementById('evVisibilityAll').checked = false;
   }
   else {
     const ev = events.find(x=>x.id===id);
     if (!ev) return;
-    document.getElementById('evTitle').value = ev.title;
-    document.getElementById('evDate').value  = ev.event_date;
-    document.getElementById('evTime').value  = ev.event_time;
-    document.getElementById('evVenue').value = ev.venue;
-    document.getElementById('evDesc').value  = ev.description;
-    document.getElementById('evFee').value   = ev.fee || 0;
+    document.getElementById('evTitle').value     = ev.title;
+    document.getElementById('evDate').value       = ev.event_date;
+    document.getElementById('evTime').value       = ev.event_time;
+    document.getElementById('evVenue').value      = ev.venue;
+    document.getElementById('evDesc').value       = ev.description;
+    document.getElementById('evFee').value        = ev.fee || 0;
+    document.getElementById('evFeeMember').value  = ev.fee_member || 0;
     const isAll = ev.visibility === 'all';
     document.getElementById('evVisibilityStudent').checked = !isAll;
     document.getElementById('evVisibilityAll').checked = isAll;
@@ -460,7 +556,8 @@ async function saveEvent() {
     venue: document.getElementById('evVenue').value,
     event_date: document.getElementById('evDate').value,
     event_time: document.getElementById('evTime').value,
-    fee: parseInt(document.getElementById('evFee').value) || 0,
+    fee:        parseInt(document.getElementById('evFee').value)       || 0,
+    fee_member: parseInt(document.getElementById('evFeeMember').value) || 0,
     visibility
   };
   try {
@@ -969,5 +1066,54 @@ async function executeBulkDelete() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Yes, Delete All';
+  }
+}
+
+// ── CHANGE ADMIN PASSWORD ────────────────────────────────────────
+async function doChangeAdminPassword() {
+  const currentPw  = document.getElementById('cpCurrentPw').value.trim();
+  const newPw      = document.getElementById('cpNewPw').value.trim();
+  const confirmPw  = document.getElementById('cpConfirmPw').value.trim();
+  const errEl      = document.getElementById('cpError');
+
+  errEl.style.display = 'none';
+
+  if (!currentPw || !newPw || !confirmPw) {
+    errEl.textContent = 'All fields are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (newPw.length < 6) {
+    errEl.textContent = 'New password must be at least 6 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (newPw !== confirmPw) {
+    errEl.textContent = 'New passwords do not match.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.querySelector('#changePwModal .btn-primary');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+
+  try {
+    await apiFetch('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
+    });
+    closeModal('changePwModal');
+    // Clear fields
+    document.getElementById('cpCurrentPw').value = '';
+    document.getElementById('cpNewPw').value = '';
+    document.getElementById('cpConfirmPw').value = '';
+    showToast('✅ Password updated successfully!', 'success');
+  } catch(e) {
+    errEl.textContent = e.message || 'Failed to update password.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
   }
 }

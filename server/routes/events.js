@@ -48,20 +48,21 @@ router.get('/:id', authenticate, async (req, res) => {
 // POST /api/events
 router.post('/', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { title, description, venue, event_date, event_time, fee, visibility } = req.body;
+    const { title, description, venue, event_date, event_time, fee, fee_member, visibility } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     const finalVisibility = ['student', 'all'].includes(visibility) ? visibility : 'student';
 
     const result = await db.run(
-      'INSERT INTO amsam_events (title, description, venue, event_date, event_time, fee, visibility, created_by) VALUES (?,?,?,?,?,?,?,?)',
+      'INSERT INTO amsam_events (title, description, venue, event_date, event_time, fee, fee_member, visibility, created_by) VALUES (?,?,?,?,?,?,?,?,?)',
       [
         xss(title),
         xss(description || ''),
         xss(venue || ''),
         xss(event_date || ''),
         xss(event_time || ''),
-        fee || 0,
+        parseInt(fee) || 0,
+        parseInt(fee_member) || 0,
         finalVisibility,
         req.user.id
       ]
@@ -75,7 +76,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 // PUT /api/events/:id
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { title, description, venue, event_date, event_time, fee, visibility } = req.body;
+    const { title, description, venue, event_date, event_time, fee, fee_member, visibility } = req.body;
     const ev = await db.get('SELECT * FROM amsam_events WHERE id = ?', [req.params.id]);
     if (!ev) return res.status(404).json({ error: 'Event not found' });
 
@@ -84,14 +85,15 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       : ev.visibility;
 
     await db.run(
-      'UPDATE amsam_events SET title=?, description=?, venue=?, event_date=?, event_time=?, fee=?, visibility=? WHERE id=?',
+      'UPDATE amsam_events SET title=?, description=?, venue=?, event_date=?, event_time=?, fee=?, fee_member=?, visibility=? WHERE id=?',
       [
         xss(title || ev.title),
         xss(description ?? ev.description),
         xss(venue ?? ev.venue),
         xss(event_date ?? ev.event_date),
         xss(event_time ?? ev.event_time),
-        fee ?? ev.fee,
+        fee !== undefined ? parseInt(fee) : ev.fee,
+        fee_member !== undefined ? parseInt(fee_member) : (ev.fee_member || 0),
         finalVisibility,
         req.params.id
       ]

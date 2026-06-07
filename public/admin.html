@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" type="image/png" href="/icons/favicon.png">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Admin Panel — AMSAM Portal</title>
@@ -13,6 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="AMSAM"/>
   <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
   <link rel="stylesheet" href="/css/global.css"/>
+  <link rel="stylesheet" href="/css/3d-effects.css"/>
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
     main { flex:1; }
@@ -176,7 +178,7 @@
 <!-- NAVBAR -->
 <nav class="navbar">
   <a href="/admin.html" class="nav-brand">
-    <div class="nav-logo-circle">AM</div>
+    <div class="nav-logo-circle"><img src="/icons/favicon.png" alt="AMSAM" style="width:100%;height:100%;object-fit:contain;border-radius:50%;"></div>
     <div class="nav-brand-info">
       <span class="nav-brand-name">AMSAM</span>
       <span class="nav-brand-sub">AIIMS Mangalagiri</span>
@@ -188,6 +190,10 @@
       <span id="navName"></span>
       <span class="badge badge-admin" id="roleBadge" style="margin-left:.25rem;"></span>
     </div>
+    <span id="myDashboardBtn" style="display:none;">
+      <a href="/dashboard.html" class="btn btn-secondary btn-sm" style="margin-right:.4rem;">🎓 My Dashboard</a>
+    </span>
+    <button class="btn btn-secondary btn-sm" onclick="openModal('changePwModal')" style="margin-right:.4rem;">🔑 Change Password</button>
     <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
   </div>
 </nav>
@@ -316,7 +322,10 @@
         </div>
         <div class="form-group">
           <label class="form-label">Password *</label>
-          <input type="password" id="sPassword" class="form-control" placeholder="Min 6 characters"/>
+          <div style="position: relative;">
+            <input type="password" id="sPassword" class="form-control" placeholder="Min 6 characters" style="padding-right: 2.5rem;"/>
+            <button type="button" tabindex="-1" onclick="const p = document.getElementById('sPassword'); p.type = p.type === 'password' ? 'text' : 'password'; this.textContent = p.type === 'password' ? '👁️' : '🙈';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0; outline: none; filter: grayscale(100%);">👁️</button>
+          </div>
         </div>
       </div>
       <div class="form-row">
@@ -376,7 +385,10 @@
         </div>
         <div class="form-group">
           <label class="form-label">Password *</label>
-          <input type="password" id="mGuestPassword" class="form-control" placeholder="Min 6 characters"/>
+          <div style="position: relative;">
+            <input type="password" id="mGuestPassword" class="form-control" placeholder="Min 6 characters" style="padding-right: 2.5rem;"/>
+            <button type="button" tabindex="-1" onclick="const p = document.getElementById('mGuestPassword'); p.type = p.type === 'password' ? 'text' : 'password'; this.textContent = p.type === 'password' ? '👁️' : '🙈';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0; outline: none; filter: grayscale(100%);">👁️</button>
+          </div>
         </div>
       </div>
     </div>
@@ -398,12 +410,53 @@
       <p class="text-muted mb-2" id="resetPwName"></p>
       <div class="form-group">
         <label class="form-label">New Password</label>
-        <input type="password" id="resetPwVal" class="form-control" placeholder="Min 6 characters"/>
+        <div style="position: relative;">
+          <input type="password" id="resetPwVal" class="form-control" placeholder="Min 6 characters" style="padding-right: 2.5rem;"/>
+          <button type="button" tabindex="-1" onclick="const p = document.getElementById('resetPwVal'); p.type = p.type === 'password' ? 'text' : 'password'; this.textContent = p.type === 'password' ? '👁️' : '🙈';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0; outline: none; filter: grayscale(100%);">👁️</button>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('resetPwModal')">Cancel</button>
       <button class="btn btn-primary" onclick="doResetPassword()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHANGE ADMIN PASSWORD MODAL ── -->
+<div class="modal-overlay" id="changePwModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Change My Password</h3>
+      <button class="modal-close" onclick="closeModal('changePwModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <div style="position:relative;">
+          <input type="password" id="cpCurrentPw" class="form-control" placeholder="Enter current password" style="padding-right:2.5rem;"/>
+          <button type="button" tabindex="-1" onclick="const p=document.getElementById('cpCurrentPw');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'👁️':'🙈';" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:0;outline:none;filter:grayscale(100%);">👁️</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <div style="position:relative;">
+          <input type="password" id="cpNewPw" class="form-control" placeholder="Min 6 characters" style="padding-right:2.5rem;"/>
+          <button type="button" tabindex="-1" onclick="const p=document.getElementById('cpNewPw');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'👁️':'🙈';" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:0;outline:none;filter:grayscale(100%);">👁️</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <div style="position:relative;">
+          <input type="password" id="cpConfirmPw" class="form-control" placeholder="Re-enter new password" style="padding-right:2.5rem;"/>
+          <button type="button" tabindex="-1" onclick="const p=document.getElementById('cpConfirmPw');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'👁️':'🙈';" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:0;outline:none;filter:grayscale(100%);">👁️</button>
+        </div>
+      </div>
+      <p id="cpError" style="color:#ef4444;font-size:.85rem;margin-top:.5rem;display:none;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('changePwModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doChangeAdminPassword()">Update Password</button>
     </div>
   </div>
 </div>
@@ -437,8 +490,19 @@
           <input type="text" id="evVenue" class="form-control" placeholder="e.g. Main Auditorium"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Registration Fee (₹)</label>
-          <input type="number" id="evFee" class="form-control" placeholder="0 for free events" value="0" min="0"/>
+          <label class="form-label">💳 Member Fee (₹) <span style="font-size:.72rem;color:var(--teal);font-weight:600;">Paid members</span></label>
+          <input type="number" id="evFeeMember" class="form-control" placeholder="0 for free" value="0" min="0"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">🏷️ Non-Member Fee (₹) <span style="font-size:.72rem;color:var(--warning);font-weight:600;">Non-members &amp; guests</span></label>
+          <input type="number" id="evFee" class="form-control" placeholder="0 for free" value="0" min="0"/>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:.2rem;">
+          <p style="font-size:.78rem;color:var(--text-muted);line-height:1.5;margin:0;">
+            💡 Set <strong>Member Fee = 0</strong> to make the event free for paid members only.
+          </p>
         </div>
       </div>
       <div class="form-group">
@@ -460,6 +524,38 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('eventModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ATTENDEES MODAL ── -->
+<div class="modal-overlay" id="attendeesModal">
+  <div class="modal" style="max-width: 1100px; width: 95%;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="attendeesModalTitle">Event Attendees</h3>
+      <button class="modal-close" onclick="closeModal('attendeesModal')">✕</button>
+    </div>
+    <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 0;">
+      <div class="table-responsive">
+        <table class="data-table" id="attendeesTable" style="margin-top: 0; border-radius: 0; box-shadow: none;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Contact Info</th>
+              <th>Role/ID</th>
+              <th>Fee Status</th>
+              <th>Admission Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="attendeesTableBody">
+            <!-- Attendees injected here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('attendeesModal')">Close</button>
     </div>
   </div>
 </div>
@@ -620,6 +716,7 @@
       .catch((err) => console.warn('SW registration failed:', err));
   }
 </script>
+<script src="/js/3d-effects.js"></script>
 </body>
 </html>
 
