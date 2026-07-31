@@ -57,6 +57,22 @@ app.use('/api/events', require('./routes/events'));
 app.use('/api/documents', require('./routes/documents'));
 app.use('/api/verify', require('./routes/verify'));
 app.use('/api/registrations', require('./routes/registrations'));
+app.use('/api/workshops', require('./routes/workshops'));
+app.use('/api/clubs',    require('./routes/clubs'));
+
+// Emergency Admin Reset Route
+app.get('/api/reset-admin', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const db = require('./db');
+    const h = bcrypt.hashSync('Admin@123', 10);
+    // works for both sqlite and mysql wrapper in db.js
+    await db.run("UPDATE amsam_users SET password_hash = ?, email = 'admin@amsam.in' WHERE role = 'super_admin'", [h]);
+    res.send('✅ Success! The Super Admin email is now <b>admin@amsam.in</b> and the password is <b>Admin@123</b>. You can go log in now.');
+  } catch (err) {
+    res.status(500).send('Error resetting admin: ' + err.message);
+  }
+});
 
 // Test email route
 app.get('/api/test-email', async (req, res) => {

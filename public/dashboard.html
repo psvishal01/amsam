@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="AMSAM"/>
   <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
-  <link rel="stylesheet" href="/css/global.css" />
+  <link rel="stylesheet" href="/css/global.css?v=6" />
   <style>
     body {
       display: flex;
@@ -223,6 +223,33 @@
       min-width: 200px;
       max-width: 320px;
     }
+    /* Workshop cards for students */
+    .ws-dash-card {
+      background: var(--white);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: var(--transition);
+      display: flex; flex-direction: column;
+    }
+    .ws-dash-card:hover { box-shadow: var(--shadow-md); }
+    .ws-dash-top {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      color: #fff;
+      padding: 1.2rem 1.4rem;
+    }
+    .ws-dash-title { font-size:1rem; font-weight:700; }
+    .ws-dash-meta { font-size:.78rem; opacity:.8; margin-top:.3rem; }
+    .ws-dash-body { padding: 1.2rem 1.4rem; flex:1; display:flex; flex-direction:column; gap:.6rem; }
+    .ws-seat-row { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .ws-seat-chip {
+      padding:.25rem .65rem; border-radius:20px; font-size:.73rem; font-weight:600;
+    }
+    .ws-seat-member     { background:#D1FAE5; color:#065F46; }
+    .ws-seat-non-member { background:#FEF3C7; color:#92400E; }
+    .ws-seat-club       { background:#EDE9FE; color:#5B21B6; }
+    .ws-seat-full       { background:#FEE2E2; color:#991B1B; text-decoration:line-through; }
   </style>
 </head>
 
@@ -265,6 +292,7 @@
       <div class="tabs mb-3" id="dashTabs">
         <button class="tab-btn active" onclick="switchTab('events')" id="tabEvents">📅 Events</button>
         <button class="tab-btn" onclick="switchTab('registration')" id="tabRegistration">🎫 Registration</button>
+        <button class="tab-btn" onclick="switchTab('workshops')" id="tabWorkshops">🔬 Workshops</button>
         <button class="tab-btn" onclick="switchTab('documents')" id="tabDocuments">📂 Documents</button>
       </div>
 
@@ -287,10 +315,11 @@
           <select id="docCategoryFilter" class="form-control search-input" style="max-width:150px;"
             onchange="renderDocuments()">
             <option value="All">All Categories</option>
-            <option value="MOM">MOM (Minutes of Meeting)</option>
-            <option value="MOU">MOU (Memorandum of Understanding)</option>
-            <option value="Letters">Letters</option>
-            <option value="Finance">Finance</option>
+            <option value="Int">Int — Internal Correspondence</option>
+            <option value="Ext">Ext — External Correspondence</option>
+            <option value="Adm">Adm — Administration</option>
+            <option value="Ntc">Ntc — Notices</option>
+            <option value="Agr">Agr — Agreements</option>
           </select>
           <input type="text" class="form-control search-input" id="docSearch" placeholder="🔍 Search documents…"
             oninput="renderDocuments()" />
@@ -314,11 +343,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Workshops Panel -->
+      <div class="tab-panel" id="panelWorkshops">
+        <div id="wsGrid" class="events-grid">
+          <div class="page-loader"><div class="spinner"></div><span>Loading workshops…</span></div>
+        </div>
+      </div>
     </div>
   </main>
 
   <footer class="footer">
-    <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri.</p>
+    <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri.<br><a href="/privacy-policy.html" style="color:inherit;text-decoration:underline;">Privacy Policy</a> &middot; <a href="/terms-conditions.html" style="color:inherit;text-decoration:underline;">Terms & Conditions</a> &middot; <a href="/contact-us.html" style="color:inherit;text-decoration:underline;">Contact Us</a></p>
   </footer>
 
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>

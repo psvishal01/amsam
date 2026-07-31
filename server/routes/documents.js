@@ -42,7 +42,7 @@ router.post('/', authenticate, requireAdmin, upload.single('file'), async (req, 
     if (!title || !category) return res.status(400).json({ error: 'Title and category are required' });
     if (!req.file) return res.status(400).json({ error: 'File is required' });
 
-    const validCategories = ['MOM', 'MOU', 'Letters', 'Finance'];
+    const validCategories = ['Int', 'Ext', 'Adm', 'Ntc', 'Agr'];
     if (!validCategories.includes(category)) return res.status(400).json({ error: 'Invalid category' });
 
     const filePath = `/uploads/documents/${req.file.filename}`;
@@ -82,7 +82,7 @@ router.put('/:id', authenticate, requireAdmin, upload.single('file'), async (req
     const doc = await db.get('SELECT * FROM amsam_documents WHERE id = ?', [id]);
     if (!doc) return res.status(404).json({ error: 'Document not found' });
 
-    const validCategories = ['MOM', 'MOU', 'Letters', 'Finance'];
+    const validCategories = ['Int', 'Ext', 'Adm', 'Ntc', 'Agr'];
     if (category && !validCategories.includes(category)) {
       return res.status(400).json({ error: 'Invalid category' });
     }

@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="AMSAM"/>
   <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
-  <link rel="stylesheet" href="/css/global.css"/>
+  <link rel="stylesheet" href="/css/global.css?v=6"/>
   <link rel="stylesheet" href="/css/3d-effects.css"/>
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
@@ -171,6 +171,27 @@
     .toggle-state-label { font-size:.78rem; font-weight:600; min-width:32px; text-align:center; }
     .toggle-state-label.on  { color:var(--teal-dark); }
     .toggle-state-label.off { color:var(--text-muted); }
+    /* Workshop seat bar */
+    .seat-bar-wrap { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.4rem; }
+    .seat-chip {
+      display:inline-flex; align-items:center; gap:.3rem; padding:.25rem .65rem;
+      border-radius:20px; font-size:.73rem; font-weight:600;
+    }
+    .seat-chip.member     { background:#D1FAE5; color:#065F46; }
+    .seat-chip.non-member { background:#FEF3C7; color:#92400E; }
+    .seat-chip.club       { background:#EDE9FE; color:#5B21B6; }
+    .seat-chip.full       { background:#FEE2E2; color:#991B1B; text-decoration:line-through; }
+    .ws-card {
+      background:var(--white); border:1px solid var(--border-light);
+      border-radius:var(--radius-md); padding:1.25rem 1.4rem;
+      display:flex; flex-direction:column; gap:.5rem;
+      box-shadow:var(--shadow-sm); transition:var(--transition);
+    }
+    .ws-card:hover { box-shadow:var(--shadow-md); }
+    .ws-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:1rem; }
+    .ws-title { font-size:1rem; font-weight:700; color:var(--navy); }
+    .ws-meta { font-size:.8rem; color:var(--text-muted); display:flex; gap:.75rem; flex-wrap:wrap; }
+    .ws-actions { display:flex; gap:.4rem; margin-top:.25rem; }
   </style>
 </head>
 <body>
@@ -201,9 +222,12 @@
 <!-- Admin Tab Bar -->
 <div class="admin-tabs" id="adminTabs">
   <button class="admin-tab active"    onclick="switchAdminTab('students')" id="tabStudents">👥 Students</button>
+  <button class="admin-tab"           onclick="switchAdminTab('rda')"      id="tabRda">🎓 RDA</button>
   <button class="admin-tab"           onclick="switchAdminTab('guests')"   id="tabGuests">🙋 Guests</button>
   <button class="admin-tab"           onclick="switchAdminTab('events')"   id="tabEvents">📅 Events</button>
+  <button class="admin-tab"           onclick="switchAdminTab('workshops')" id="tabWorkshops">🔬 Workshops</button>
   <button class="admin-tab"           onclick="switchAdminTab('documents')" id="tabDocuments">📂 Documents</button>
+  <button class="admin-tab super-only" onclick="switchAdminTab('clubs')"     id="tabClubs">🎭 Clubs</button>
   <button class="admin-tab"           onclick="switchAdminTab('scanner')"  id="tabScanner">📷 QR Scanner</button>
 </div>
 
@@ -231,6 +255,30 @@
       <div id="studentsTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
     </div>
 
+    <!-- ── RDA (PG STUDENTS) ── -->
+    <div class="tab-panel" id="panelRda">
+      <div class="section-header mb-2" style="align-items:center;">
+        <div style="display:flex;align-items:center;gap:.75rem;">
+          <h2 class="section-title" style="margin:0;">Manage RDA</h2>
+          <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72rem;font-weight:700;padding:.25rem .65rem;border-radius:20px;letter-spacing:.04em;">PG STUDENTS</span>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+          <div style="position:relative;">
+            <span style="position:absolute;left:.6rem;top:50%;transform:translateY(-50%);font-size:.85rem;color:var(--text-muted);">🔍</span>
+            <input type="text" id="rdaSearch" class="form-control" placeholder="Search PG students..." onkeyup="filterRda()" style="padding-left:1.8rem; padding-top:.4rem; padding-bottom:.4rem; width:220px; font-size:.85rem; margin:0;"/>
+          </div>
+          <select id="rdaPaymentFilter" class="form-control" onchange="filterRda()" style="padding-top:.4rem; padding-bottom:.4rem; font-size:.85rem; margin:0; width:auto;">
+            <option value="all">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="importRdaExcelBtn" onclick="openImportModal('pg_student')">📤 Import Excel</button>
+          <button class="btn btn-primary btn-sm" id="addRdaBtn" onclick="openRdaModal()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-color:transparent;">+ Add PG Student</button>
+        </div>
+      </div>
+      <div id="rdaTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
+    </div>
+
     <!-- ── GUESTS ── -->
     <div class="tab-panel" id="panelGuests">
       <div class="section-header mb-2" style="align-items:center;">
@@ -254,6 +302,15 @@
         <button class="btn btn-primary btn-sm" onclick="openEventModal()">+ Add Event</button>
       </div>
       <div id="eventsTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
+    </div>
+
+    <!-- ── WORKSHOPS ── -->
+    <div class="tab-panel" id="panelWorkshops">
+      <div class="section-header mb-2">
+        <h2 class="section-title">🔬 Manage Workshops</h2>
+        <button class="btn btn-primary btn-sm" onclick="openWorkshopModal()">+ Add Workshop</button>
+      </div>
+      <div id="workshopsTable"><div class="page-loader"><div class="spinner"></div><span>Loading…</span></div></div>
     </div>
 
     <!-- ── DOCUMENTS ── -->
@@ -288,13 +345,134 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <!-- ── CLUBS ── -->
+    <div class="tab-panel" id="panelClubs">
+      <div class="section-header mb-2" style="align-items:center;">
+        <h2 class="section-title">🎭 Manage Clubs</h2>
+        <button class="btn btn-primary btn-sm" id="addClubBtn" onclick="openAddClubModal()">+ Add Club</button>
+      </div>
+      <p class="text-muted" style="margin-bottom:1.25rem;font-size:.88rem;">Clubs defined here will appear as selectable options when assigning students to clubs and when creating workshop club seats.</p>
+      <div id="clubsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
+        <div class="page-loader"><div class="spinner"></div><span>Loading…</span></div>
+      </div>
+    </div>
 
   </div>
 </main>
 
+
 <footer class="footer">
-  <p>© 2025 <strong>AMSAM</strong> — Admin Panel. Association of Medical Students, AIIMS Mangalagiri.</p>
+  <p>© 2025 <strong>AMSAM</strong> — Admin Panel. Association of Medical Students, AIIMS Mangalagiri.<br><a href="/privacy-policy.html" style="color:inherit;text-decoration:underline;">Privacy Policy</a> &middot; <a href="/terms-conditions.html" style="color:inherit;text-decoration:underline;">Terms & Conditions</a> &middot; <a href="/contact-us.html" style="color:inherit;text-decoration:underline;">Contact Us</a></p>
 </footer>
+
+<!-- ── ADD CLUB MODAL ── -->
+<div class="modal-overlay" id="addClubModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 class="modal-title">🎭 Add New Club</h3>
+      <button class="modal-close" onclick="closeModal('addClubModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Club Name *</label>
+        <input type="text" id="newClubName" class="form-control" placeholder="e.g. Dance, Debate, Photography"/>
+        <p style="font-size:.78rem;color:var(--text-muted);margin-top:.4rem;">This name will appear in the student assignment and workshop forms.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Club Icon (Emoji)</label>
+        <div id="newClubIconPicker" style="display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--cream);">
+        </div>
+        <input type="hidden" id="newClubIcon" value="🎭"/>
+        <p style="font-size:.78rem;color:var(--text-muted);margin-top:.4rem;">Click an emoji to select it as the club icon.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addClubModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewClub()">Create Club</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EDIT CLUB MODAL ── -->
+<div class="modal-overlay" id="editClubModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 class="modal-title">✏️ Edit Club</h3>
+      <button class="modal-close" onclick="closeModal('editClubModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editClubId"/>
+      <div class="form-group">
+        <label class="form-label">Club Name *</label>
+        <input type="text" id="editClubName" class="form-control" placeholder="e.g. Dance, Debate, Photography"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Club Icon (Emoji)</label>
+        <div id="editClubIconPicker" style="display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--cream);">
+        </div>
+        <input type="hidden" id="editClubIcon" value="🎭"/>
+        <p style="font-size:.78rem;color:var(--text-muted);margin-top:.4rem;">Click an emoji to select it as the club icon.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editClubModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditClub()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CLUB MEMBERS MODAL ── -->
+<div class="modal-overlay" id="clubMembersModal">
+  <div class="modal" style="max-width:900px;width:95%;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:.75rem;">
+        <span id="clubMembersIcon" style="font-size:1.6rem;">🎭</span>
+        <div>
+          <h3 class="modal-title" id="clubMembersTitle">Club Members</h3>
+          <span id="clubMembersBadge" style="font-size:.78rem;color:var(--text-muted);"></span>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal('clubMembersModal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:1rem 1.25rem;">
+      <!-- Filter Bar -->
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;padding:.75rem;background:var(--cream);border-radius:var(--radius-md);border:1px solid var(--border);">
+        <div style="position:relative;flex:1;min-width:180px;">
+          <span style="position:absolute;left:.6rem;top:50%;transform:translateY(-50%);font-size:.85rem;color:var(--text-muted);">🔍</span>
+          <input type="text" id="clubMembersSearch" class="form-control"
+            placeholder="Search by name, ID, email…"
+            oninput="filterClubMembers()"
+            style="padding-left:1.8rem;padding-top:.4rem;padding-bottom:.4rem;font-size:.85rem;margin:0;"/>
+        </div>
+        <select id="clubMembersPayFilter" class="form-control" onchange="filterClubMembers()"
+          style="padding-top:.4rem;padding-bottom:.4rem;font-size:.85rem;margin:0;width:auto;min-width:130px;">
+          <option value="all">All Status</option>
+          <option value="paid">💳 Fee Paid</option>
+          <option value="unpaid">❌ Fee Unpaid</option>
+        </select>
+        <select id="clubMembersRoleFilter" class="form-control" onchange="filterClubMembers()"
+          style="padding-top:.4rem;padding-bottom:.4rem;font-size:.85rem;margin:0;width:auto;min-width:130px;">
+          <option value="all">All Roles</option>
+          <option value="student">🎓 Students</option>
+          <option value="pg_student">📚 RDA / PG</option>
+          <option value="guest">🙋 Guests</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="resetClubMembersFilters()" style="white-space:nowrap;">↺ Reset</button>
+      </div>
+      <!-- Results count -->
+      <p id="clubMembersCount" style="font-size:.82rem;color:var(--text-muted);margin-bottom:.6rem;"></p>
+      <!-- Table -->
+      <div id="clubMembersTable" style="max-height:55vh;overflow-y:auto;">
+        <div class="page-loader"><div class="spinner"></div><span>Loading…</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('clubMembersModal')">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── STUDENT MODAL ── -->
 <div class="modal-overlay" id="studentModal">
@@ -338,14 +516,27 @@
           <input type="text" id="sDept" class="form-control" placeholder="e.g. MBBS"/>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Phone</label>
-        <input type="tel" id="sPhone" class="form-control" placeholder="10-digit mobile number"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="tel" id="sPhone" class="form-control" placeholder="10-digit mobile number"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Clubs</label>
+          <div id="sClubsGroup" style="display:flex; flex-wrap:wrap; gap:0.75rem; padding:0.6rem 0.8rem; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--cream); min-height:42px;">
+            <span style="font-size:.82rem;color:var(--text-muted);">Loading clubs…</span>
+          </div>
+        </div>
       </div>
       <div class="form-group" id="photoGroup">
         <label class="form-label">Profile Photo</label>
         <input type="file" id="sPhoto" class="form-control" accept="image/*" onchange="previewPhoto(this)"/>
         <img id="photoPreview" class="photo-preview mt-1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🗓️ Membership Valid Till</label>
+        <input type="date" id="sValidTill" class="form-control"/>
+        <p style="font-size:.76rem;color:var(--text-muted);margin-top:.35rem;">Sets the "Valid till" date shown on the student's membership card. Leave blank to auto-calculate from batch year.</p>
       </div>
     </div>
     <div class="modal-footer">
@@ -419,6 +610,32 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('resetPwModal')">Cancel</button>
       <button class="btn btn-primary" onclick="doResetPassword()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SET MEMBERSHIP VALIDITY MODAL ── -->
+<div class="modal-overlay" id="setValidityModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 class="modal-title">🗓️ Set Membership Valid Till</h3>
+      <button class="modal-close" onclick="closeModal('setValidityModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted mb-2" id="validityStudentName" style="font-size:.88rem;font-weight:500;"></p>
+      <div class="form-group">
+        <label class="form-label">Valid Till Date</label>
+        <input type="date" id="validityDate" class="form-control"/>
+        <p style="font-size:.76rem;color:var(--text-muted);margin-top:.4rem;">
+          This date will appear as the <strong>"Valid till"</strong> date on the student's membership card.<br>
+          Leave blank and click <em>Clear</em> to auto-calculate from their batch year.
+        </p>
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="clearValidity()" style="margin-right:auto;">↺ Clear (Auto)</button>
+      <button class="btn btn-secondary" onclick="closeModal('setValidityModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doSetValidity()">💾 Save</button>
     </div>
   </div>
 </div>
@@ -505,14 +722,28 @@
           </p>
         </div>
       </div>
+      <div style="border-top:1px solid var(--border);padding-top:.75rem;margin-top:.25rem;margin-bottom:.75rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+          <label class="form-label" style="font-size:.78rem;margin:0;">
+            <span style="background:#EDE9FE;color:#5B21B6;padding:.15rem .5rem;border-radius:10px;font-size:.72rem;font-weight:700;">🎭 Club Member Fees</span>
+            <span style="font-size:.72rem;color:var(--text-muted);margin-left:.4rem;">(Custom fees for club members without paid membership)</span>
+          </label>
+          <button type="button" onclick="addEventClubFeeRow()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:.25rem .75rem;font-size:.78rem;font-weight:600;cursor:pointer;">+ Add Club Fee</button>
+        </div>
+        <div id="eventClubFeesContainer" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+        <p style="font-size:.73rem;color:var(--text-muted);margin-top:.5rem;">💡 Students with paid AMSAM membership always use the <strong>Member Fee</strong>.</p>
+      </div>
       <div class="form-group">
         <label class="form-label">Visible To *</label>
         <div style="display:flex; gap:1.5rem; align-items:center; margin-top:.35rem;">
           <label style="display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.9rem; color:var(--text-secondary);">
-            <input type="checkbox" id="evVisibilityStudent" class="select-cb" checked onchange="toggleVisibilityCheckbox('student')"/> Student
+            <input type="checkbox" id="evVisibilityStudent" class="select-cb" checked/> Student
           </label>
           <label style="display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.9rem; color:var(--text-secondary);">
-            <input type="checkbox" id="evVisibilityAll" class="select-cb" onchange="toggleVisibilityCheckbox('all')"/> All (Students & Guests)
+            <input type="checkbox" id="evVisibilityAll" class="select-cb"/> All (Students & Guests)
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.9rem; color:var(--text-secondary);">
+            <input type="checkbox" id="evVisibilityRda" class="select-cb"/> RDA
           </label>
         </div>
       </div>
@@ -528,6 +759,125 @@
   </div>
 </div>
 
+<!-- ── WORKSHOP MODAL ── -->
+<div class="modal-overlay" id="workshopModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="workshopModalTitle">Add Workshop</h3>
+      <button class="modal-close" onclick="closeModal('workshopModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="workshopId"/>
+      <div class="form-group">
+        <label class="form-label">Workshop Title *</label>
+        <input type="text" id="wsTitle" class="form-control" placeholder="e.g. Suturing Skills Workshop"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <input type="date" id="wsDate" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <input type="date" id="wsToDate" class="form-control"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Time</label>
+          <input type="text" id="wsTime" class="form-control" placeholder="e.g. 10:00 AM"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Venue</label>
+          <input type="text" id="wsVenue" class="form-control" placeholder="e.g. Skills Lab"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Visible To *</label>
+        <div style="display:flex; gap:1.5rem; align-items:center; margin-top:.35rem;">
+          <label style="display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.9rem; color:var(--text-secondary);">
+            <input type="checkbox" id="wsVisibilityStudent" class="select-cb" checked/> Student
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.9rem; color:var(--text-secondary);">
+            <input type="checkbox" id="wsVisibilityAll" class="select-cb"/> All (Students & Guests)
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.9rem; color:var(--text-secondary);">
+            <input type="checkbox" id="wsVisibilityRda" class="select-cb"/> RDA
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="wsDesc" class="form-control" rows="2" placeholder="Brief description of the workshop…"></textarea>
+      </div>
+
+      <!-- Seat allocation section -->
+      <div style="background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.1rem;margin-top:.5rem;">
+        <p style="font-size:.82rem;font-weight:700;color:var(--navy);margin-bottom:.75rem;">🪑 Seat Allocation by Category</p>
+        <div class="form-row" style="gap:.75rem;">
+          <div class="form-group" style="margin-bottom:.5rem;">
+            <label class="form-label" style="font-size:.78rem;">
+              <span style="background:#D1FAE5;color:#065F46;padding:.15rem .5rem;border-radius:10px;font-size:.72rem;font-weight:700;">💳 Members</span>
+              <span style="font-size:.72rem;color:var(--text-muted);margin-left:.4rem;">(Paid membership holders)</span>
+            </label>
+            <input type="number" id="wsSeatsMember" class="form-control" placeholder="0 = unlimited" min="0" value="0"/>
+          </div>
+          <div class="form-group" style="margin-bottom:.5rem;">
+            <label class="form-label" style="font-size:.78rem;">
+              <span style="background:#FEF3C7;color:#92400E;padding:.15rem .5rem;border-radius:10px;font-size:.72rem;font-weight:700;">🏷️ Non-Members</span>
+              <span style="font-size:.72rem;color:var(--text-muted);margin-left:.4rem;">(No membership)</span>
+            </label>
+            <input type="number" id="wsSeatsNonMember" class="form-control" placeholder="0 = unlimited" min="0" value="0"/>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:.75rem;margin-top:.25rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+            <label class="form-label" style="font-size:.78rem;margin:0;">
+              <span style="background:#EDE9FE;color:#5B21B6;padding:.15rem .5rem;border-radius:10px;font-size:.72rem;font-weight:700;">🎭 Club Seats</span>
+              <span style="font-size:.72rem;color:var(--text-muted);margin-left:.4rem;">(Reserved for specific clubs)</span>
+            </label>
+            <button type="button" onclick="addClubSlotRow()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:.25rem .75rem;font-size:.78rem;font-weight:600;cursor:pointer;">+ Add Club</button>
+          </div>
+          <!-- Dynamic club rows injected here -->
+          <div id="clubSlotsContainer" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+          <p style="font-size:.73rem;color:var(--text-muted);margin-top:.5rem;">💡 Members with paid membership always use <strong>Member seats</strong>. Club seats are for club-members who haven't paid membership.</p>
+        </div>
+
+        <!-- Fee section -->
+        <div style="border-top:1px solid var(--border);padding-top:.75rem;margin-top:.75rem;">
+          <p style="font-size:.82rem;font-weight:700;color:var(--navy);margin-bottom:.6rem;">💰 Registration Fees (₹) &nbsp;<span style="font-size:.72rem;font-weight:400;color:var(--text-muted);">Set 0 for free</span></p>
+          <div class="form-row" style="gap:.75rem;">
+            <div class="form-group" style="margin-bottom:.5rem;">
+              <label class="form-label" style="font-size:.78rem;"><span style="background:#D1FAE5;color:#065F46;padding:.15rem .5rem;border-radius:10px;font-size:.72rem;font-weight:700;">💳 Member Fee (₹)</span></label>
+              <input type="number" id="wsFeeMember" class="form-control" placeholder="0 = free" min="0" value="0"/>
+            </div>
+            <div class="form-group" style="margin-bottom:.5rem;">
+              <label class="form-label" style="font-size:.78rem;"><span style="background:#FEF3C7;color:#92400E;padding:.15rem .5rem;border-radius:10px;font-size:.72rem;font-weight:700;">🏷️ Non-Member Fee (₹)</span></label>
+              <input type="number" id="wsFeeNonMember" class="form-control" placeholder="0 = free" min="0" value="0"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('workshopModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveWorkshopBtn" onclick="saveWorkshop()">Create Workshop</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── WORKSHOP REGISTRATIONS MODAL ── -->
+<div class="modal-overlay" id="wsRegsModal">
+  <div class="modal" style="max-width:900px;width:95%;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="wsRegsTitle">Workshop Registrations</h3>
+      <button class="modal-close" onclick="closeModal('wsRegsModal')">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto;padding:0;">
+      <div id="wsRegsBody" style="padding:1rem;">Loading…</div>
+    </div>
+  </div>
+</div>
 <!-- ── ATTENDEES MODAL ── -->
 <div class="modal-overlay" id="attendeesModal">
   <div class="modal" style="max-width: 1100px; width: 95%;">
@@ -576,10 +926,11 @@
       <div class="form-group">
         <label class="form-label">Category *</label>
         <select id="docCategory" class="form-control">
-          <option value="MOM">MOM</option>
-          <option value="MOU">MOU</option>
-          <option value="Letters">Letters</option>
-          <option value="Finance">Finance</option>
+          <option value="Int">Int — Internal Correspondence</option>
+          <option value="Ext">Ext — External Correspondence</option>
+          <option value="Adm">Adm — Administration</option>
+          <option value="Ntc">Ntc — Notices</option>
+          <option value="Agr">Agr — Agreements</option>
         </select>
       </div>
       <div class="form-group">
@@ -598,11 +949,98 @@
   </div>
 </div>
 
+<!-- ── RDA STUDENT MODAL ── -->
+<div class="modal-overlay" id="rdaModal">
+  <div class="modal" style="border-top:3px solid #6366f1;">
+    <div class="modal-header" style="background:linear-gradient(135deg,rgba(99,102,241,.07),rgba(139,92,246,.07));">
+      <h3 class="modal-title" id="rdaModalTitle" style="color:#4338ca;">🎓 Add PG Student</h3>
+      <button class="modal-close" onclick="closeModal('rdaModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="rdaStudentId"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="rName" class="form-control" placeholder="e.g. Dr. Priya Nair"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">College ID *</label>
+          <input type="text" id="rCollegeId" class="form-control" placeholder="e.g. PG2024001"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <input type="email" id="rEmail" class="form-control" placeholder="pg@aiims.edu.in"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <div style="position: relative;">
+            <input type="password" id="rPassword" class="form-control" placeholder="Min 6 characters" style="padding-right: 2.5rem;"/>
+            <button type="button" tabindex="-1" onclick="const p = document.getElementById('rPassword'); p.type = p.type === 'password' ? 'text' : 'password'; this.textContent = p.type === 'password' ? '👁️' : '🙈';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0; outline: none; filter: grayscale(100%);">👁️</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Batch / Year</label>
+          <input type="text" id="rBatch" class="form-control" placeholder="e.g. 2024"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Specialization / Department</label>
+          <input type="text" id="rDept" class="form-control" placeholder="e.g. MD Medicine"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="tel" id="rPhone" class="form-control" placeholder="10-digit mobile number"/>
+      </div>
+      <div class="form-group" id="rdaPhotoGroup">
+        <label class="form-label">Profile Photo</label>
+        <input type="file" id="rPhoto" class="form-control" accept="image/*" onchange="previewRdaPhoto(this)"/>
+        <img id="rdaPhotoPreview" class="photo-preview mt-1"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('rdaModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveRdaBtn" onclick="saveRdaStudent()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-color:transparent;">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RDA BULK-DELETE CONFIRMATION MODAL ── -->
+<div class="modal-overlay" id="rdaBulkDeleteModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header" style="background:#FEF2F2;border-bottom:1px solid #FECACA;">
+      <h3 class="modal-title" style="color:#991B1B;">🗑️ Confirm Bulk Delete</h3>
+      <button class="modal-close" onclick="closeModal('rdaBulkDeleteModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:#374151;line-height:1.6;">
+        You are about to permanently delete
+        <strong id="rdaBulkDeleteCount" style="color:#DC2626;">0 PG students</strong>.
+        This action <strong>cannot be undone</strong> and will also remove all associated event registrations.
+      </p>
+      <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:.85rem 1rem;margin-top:.75rem;">
+        <p style="margin:0;font-size:.85rem;color:#991B1B;font-weight:600;">⚠️ This will delete all selected accounts from the database.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('rdaBulkDeleteModal')">Cancel</button>
+      <button class="btn" id="confirmRdaBulkDeleteBtn"
+        style="background:#DC2626;color:#fff;border:none;"
+        onclick="executeRdaBulkDelete()">
+        Yes, Delete All
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── IMPORT MODAL ── -->
 <div class="modal-overlay" id="importModal">
   <div class="modal import-modal">
     <div class="modal-header">
-      <h3 class="modal-title">📤 Bulk Import Students</h3>
+      <h3 class="modal-title" id="importModalTitle">📤 Bulk Import Students</h3>
       <button class="modal-close" onclick="closeModal('importModal')">✕</button>
     </div>
     <div class="modal-body">
@@ -705,10 +1143,17 @@
   <button class="btn-bulk-clear" onclick="clearSelection()">✕ Clear</button>
 </div>
 
+<!-- Floating RDA bulk-action toolbar -->
+<div class="bulk-toolbar" id="rdaBulkToolbar" style="bottom:4.5rem;background:linear-gradient(135deg,#4338ca,#6366f1);">
+  <span class="bulk-toolbar-count">🎓 <span id="rdaBulkCount">0</span> selected</span>
+  <button class="btn-bulk-delete" onclick="confirmRdaBulkDelete()">🗑️ Delete Selected</button>
+  <button class="btn-bulk-clear" onclick="clearRdaSelection()">✕ Clear</button>
+</div>
+
 <!-- jsQR for QR scanning -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="/js/auth.js?v=3"></script>
-<script src="/js/admin.js?v=3"></script>
+<script src="/js/auth.js?v=4"></script>
+<script src="/js/admin.js?v=4"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')

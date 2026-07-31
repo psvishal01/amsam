@@ -5,9 +5,9 @@
   <link rel="icon" type="image/png" href="/icons/favicon.png">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Login — AMSAM Portal</title>
+  <title>RDA Login — AMSAM Portal</title>
   <meta name="description"
-    content="AMSAM Membership Portal — Login to access your membership dashboard, events and profile." />
+    content="RDA (Resident Doctors' Association) Login — AMSAM Portal for PG Students at AIIMS Mangalagiri." />
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#1A2040" />
@@ -21,7 +21,7 @@
     body {
       margin: 0;
       font-family: 'Inter', 'Outfit', sans-serif;
-      background: linear-gradient(135deg, #0C1F3D 0%, #1A3259 40%, #0D9488 100%);
+      background: linear-gradient(135deg, #0F0C29 0%, #302B63 45%, #6366f1 100%);
       color: white;
       min-height: 100vh;
       display: flex;
@@ -45,8 +45,8 @@
       width: 24rem;
       height: 24rem;
       border-radius: 50%;
-      background: #14B8A6;
-      opacity: 0.1;
+      background: #8b5cf6;
+      opacity: 0.15;
     }
 
     .blob-2 {
@@ -57,7 +57,7 @@
       height: 20rem;
       border-radius: 50%;
       background: #F59E0B;
-      opacity: 0.1;
+      opacity: 0.08;
     }
 
     .blob-3 {
@@ -69,7 +69,7 @@
       height: 16rem;
       border-radius: 50%;
       background: #ffffff;
-      opacity: 0.05;
+      opacity: 0.04;
     }
 
     .login-container {
@@ -79,6 +79,23 @@
       max-width: 440px;
       padding: 0 1rem;
       box-sizing: border-box;
+    }
+
+    .rda-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: linear-gradient(135deg, rgba(99, 102, 241, .35), rgba(139, 92, 246, .35));
+      border: 1px solid rgba(167, 139, 250, .4);
+      color: #c4b5fd;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      padding: .3rem .85rem;
+      border-radius: 20px;
+      margin: 0 auto .75rem;
+      width: fit-content;
+      text-transform: uppercase;
     }
 
     .header-logo {
@@ -94,6 +111,8 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
+      border-radius: 50%;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
     }
 
     .page-title {
@@ -106,8 +125,8 @@
     }
 
     .page-subtitle {
-      color: rgba(255, 255, 255, 0.65);
-      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.88rem;
       text-align: center;
       margin-top: 0.25rem;
       margin-bottom: 2rem;
@@ -117,10 +136,10 @@
       background: rgba(255, 255, 255, 0.07);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(167, 139, 250, 0.25);
       border-radius: 1rem;
       padding: 2rem;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
     }
 
     .login-card h2 {
@@ -146,8 +165,8 @@
 
     .form-control {
       width: 100%;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(167, 139, 250, 0.3);
       color: white;
       border-radius: 0.75rem;
       padding: 0.75rem 1rem;
@@ -159,12 +178,13 @@
     }
 
     .form-control::placeholder {
-      color: rgba(255, 255, 255, 0.4);
+      color: rgba(255, 255, 255, 0.35);
     }
 
     .form-control:focus {
-      border-color: #14B8A6;
-      background: rgba(255, 255, 255, 0.15);
+      border-color: #8b5cf6;
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
 
     .form-control.has-icon {
@@ -187,7 +207,7 @@
     .login-btn {
       width: 100%;
       padding: 0.75rem;
-      background: linear-gradient(135deg, #0D9488, #14B8A6);
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: white;
       font-weight: 600;
       border: none;
@@ -195,15 +215,16 @@
       font-size: 1rem;
       cursor: pointer;
       margin-top: 0.5rem;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s, transform 0.15s;
     }
 
     .login-btn:hover {
       opacity: 0.9;
+      transform: translateY(-1px);
     }
 
     .error-msg {
-      background: rgba(254, 242, 242, 0.1);
+      background: rgba(254, 242, 242, 0.08);
       border: 1px solid rgba(254, 202, 202, 0.3);
       color: #FECACA;
       border-radius: 0.5rem;
@@ -220,15 +241,32 @@
     .guest-link {
       text-align: center;
       margin-top: 1.5rem;
-      color: rgba(255, 255, 255, 0.55);
+      color: rgba(255, 255, 255, 0.5);
       font-size: 0.875rem;
     }
 
     .guest-link a {
-      color: #FBBF24;
+      color: #c4b5fd;
       text-decoration: underline;
       text-underline-offset: 2px;
       cursor: pointer;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin: 1.25rem 0 1rem;
+      color: rgba(255, 255, 255, .3);
+      font-size: .78rem;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, .15);
     }
   </style>
 </head>
@@ -243,17 +281,20 @@
 
   <div class="login-container">
     <div class="header-logo">
-      <img src="/icons/favicon.png" alt="AMSAM Logo" />
+      <img src="/icons/rda-logo.png" alt="RDA Logo" />
     </div>
-    <h1 class="page-title">AMSAM Portal</h1>
-    <p class="page-subtitle">Association of Medical Students · AIIMS Mangalagiri</p>
+
+    <div class="rda-badge">🎓 RDA Portal</div>
+
+    <h1 class="page-title">RDA Login Portal</h1>
+    <p class="page-subtitle">Resident Doctors' Association · AIIMS Mangalagiri</p>
 
     <div class="login-card">
-      <h2>Sign In</h2>
+      <h2>PG Student Sign In</h2>
 
       <div class="error-msg" id="errorMsg">⚠️ <span id="errorText"></span></div>
 
-      <form id="loginForm" autocomplete="off">
+      <form id="rdaLoginForm" autocomplete="off">
         <div class="form-group">
           <label for="email">Email Address</label>
           <input type="email" id="email" class="form-control" placeholder="you@aiims.edu" required />
@@ -268,11 +309,10 @@
         <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
       </form>
 
+      <div class="divider">or</div>
+
       <div class="guest-link">
-        External user? <a href="/guest-signup.html">Register as Guest</a>
-      </div>
-      <div class="guest-link" style="margin-top:.65rem;">
-        RDA / PG Student? <a href="/rda-login.html">Login here instead</a>
+        AMSAM Student? <a href="/index.html">Login here instead</a>
       </div>
       <div class="guest-link" style="margin-top:1.5rem; font-size: 0.75rem;">
         <a href="/privacy-policy.html" style="color: rgba(255,255,255,0.55); text-decoration: underline; text-underline-offset: 2px;">Privacy Policy</a> &middot; <a href="/terms-conditions.html" style="color: rgba(255,255,255,0.55); text-decoration: underline; text-underline-offset: 2px;">Terms & Conditions</a> &middot; <a href="/contact-us.html" style="color: rgba(255,255,255,0.55); text-decoration: underline; text-underline-offset: 2px;">Contact Us</a>
@@ -282,11 +322,65 @@
 
   <script src="/js/auth.js"></script>
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then(() => console.log('AMSAM PWA: Service Worker registered.'))
-        .catch((err) => console.warn('SW registration failed:', err));
+    // ── RDA Login Page Logic ──────────────────────────────────────
+    // Already logged in → redirect
+    if (getToken()) {
+      const u = getUser();
+      if (u?.role === 'pg_student') window.location.href = '/home.html';
+      else if (['super_admin', 'sub_admin'].includes(u?.role)) window.location.href = '/admin.html';
+      else if (u?.role === 'guest') window.location.href = '/guest-dashboard.html';
+      else window.location.href = '/home.html';
     }
+
+    const form = document.getElementById('rdaLoginForm');
+    const btn = document.getElementById('loginBtn');
+    const errMsg = document.getElementById('errorMsg');
+    const errTxt = document.getElementById('errorText');
+    const toggle = document.getElementById('togglePwd');
+    const pwdFld = document.getElementById('password');
+
+    toggle.addEventListener('click', () => {
+      pwdFld.type = pwdFld.type === 'password' ? 'text' : 'password';
+      toggle.textContent = pwdFld.type === 'password' ? '👁️' : '🙈';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errMsg.classList.remove('show');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Signing in…';
+
+      try {
+        const data = await apiFetch('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: document.getElementById('email').value.trim(),
+            password: pwdFld.value
+          })
+        });
+
+        // Only allow pg_student (and admins) through this portal
+        if (!['pg_student', 'super_admin', 'sub_admin'].includes(data.user.role)) {
+          errTxt.textContent = 'This login is for RDA (PG Students) only. Please use the student login page.';
+          errMsg.classList.add('show');
+          btn.disabled = false;
+          btn.innerHTML = 'Sign In';
+          return;
+        }
+
+        saveSession(data.token, data.user);
+
+        let dest = '/home.html';
+        if (['super_admin', 'sub_admin'].includes(data.user.role)) dest = '/admin.html';
+        window.location.href = dest;
+
+      } catch (err) {
+        errTxt.textContent = err.message;
+        errMsg.classList.add('show');
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In';
+      }
+    });
   </script>
   <script src="/js/3d-effects.js"></script>
 </body>

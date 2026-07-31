@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <link rel="icon" type="image/png" href="/icons/favicon.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Contact Us — AMSAM Portal</title>
+  <meta name="description" content="Contact the Association of Medical Students at AIIMS Mangalagiri." />
+  <link rel="stylesheet" href="/css/global.css" />
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f766e 100%);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    .doc-page {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 3rem 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative background blobs */
+    .doc-page::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(20, 184, 166, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+      top: -200px;
+      left: -100px;
+      border-radius: 50%;
+      z-index: 0;
+    }
+
+    .doc-page::after {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+      bottom: -150px;
+      right: -100px;
+      border-radius: 50%;
+      z-index: 0;
+    }
+
+    .doc-card {
+      width: 100%;
+      max-width: 800px;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      padding: 3rem;
+      position: relative;
+      z-index: 1;
+      animation: slideUp 0.4s ease-out forwards;
+      color: #334155;
+      line-height: 1.6;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-logo {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    .card-logo span {
+      background: var(--teal-dark);
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+    }
+
+    .doc-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    .doc-date {
+      text-align: center;
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    .doc-card h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--teal-dark);
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .doc-card p {
+      margin-bottom: 1rem;
+    }
+
+    .contact-info {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .contact-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .contact-icon {
+      font-size: 1.5rem;
+      background: var(--teal-pale);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .contact-text strong {
+      display: block;
+      color: var(--navy);
+      font-size: 1rem;
+      margin-bottom: 0.1rem;
+    }
+
+    .contact-text span {
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f1f5f9;
+      color: #475569;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin-bottom: 2rem;
+    }
+
+    .back-btn:hover {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+
+    @media(max-width:600px) {
+      .doc-card {
+        padding: 2rem 1.5rem;
+      }
+
+      .doc-title {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="doc-page">
+    <div class="doc-card">
+
+      <a href="javascript:history.back()" class="back-btn">
+        <span>←</span> Go Back
+      </a>
+
+      <div class="card-logo">
+        <span>AMSAM PORTAL</span>
+      </div>
+
+      <h1 class="doc-title">Contact Us</h1>
+      <div class="doc-date">Get in touch with the AMSAM Administration</div>
+
+      <p>Whether you have a question about an upcoming workshop, a club membership, or you just need some assistance
+        using the portal, we are here to help!</p>
+
+      <div class="contact-info">
+        <div class="contact-item">
+          <div class="contact-icon">📍</div>
+          <div class="contact-text">
+            <strong>Address</strong>
+            <span>Room No : 002, UG Boys hostel, AIIMS Mangalagiri</span>
+          </div>
+        </div>
+
+        <div class="contact-item">
+          <div class="contact-icon">✉️</div>
+          <div class="contact-text">
+            <strong>Email Us</strong>
+            <span>amsamaiims@gmail.com</span>
+          </div>
+        </div>
+
+        <div class="contact-item">
+          <div class="contact-icon">📞</div>
+          <div class="contact-text">
+            <strong>Phone</strong>
+            <span>+91 8078782651 (Mon - Sat, 9am - 5pm)</span>
+          </div>
+        </div>
+      </div>
+
+      <h2>Technical Support</h2>
+      <p>If you are experiencing issues with the portal itself (like login problems, failed payments, or bugs), please
+        reach out directly to the IT Club team via email. Include your registration ID and a brief description of the
+        issue in your message so we can assist you faster.</p>
+
+    </div>
+  </div>
+
+  <script src="/js/3d-effects.js"></script>
+</body>
+
+</html>

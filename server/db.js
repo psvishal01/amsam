@@ -114,7 +114,7 @@ async function initDB() {
           email         TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
           photo_path    TEXT DEFAULT NULL,
-          role          TEXT CHECK(role IN ('super_admin','sub_admin','student','guest')) NOT NULL DEFAULT 'student',
+          role          TEXT CHECK(role IN ('super_admin','sub_admin','student','guest','pg_student')) NOT NULL DEFAULT 'student',
           organization  TEXT DEFAULT NULL,
           batch         TEXT DEFAULT NULL,
           department    TEXT DEFAULT NULL,
@@ -136,8 +136,9 @@ async function initDB() {
           event_time  TEXT,
           fee         INTEGER DEFAULT 0,
           fee_member  INTEGER DEFAULT 0,
+          club_fees   TEXT DEFAULT NULL,
           created_by  INTEGER,
-          visibility  TEXT CHECK(visibility IN ('student','all')) NOT NULL DEFAULT 'student',
+          visibility  TEXT NOT NULL DEFAULT 'student',
           created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (created_by) REFERENCES amsam_users(id) ON DELETE SET NULL
         )
@@ -149,7 +150,7 @@ async function initDB() {
           id          INTEGER PRIMARY KEY AUTOINCREMENT,
           title       TEXT NOT NULL,
           description TEXT,
-          category    TEXT CHECK(category IN ('MOM','MOU','Letters','Finance')) NOT NULL,
+          category    TEXT CHECK(category IN ('Int','Ext','Adm','Ntc','Agr')) NOT NULL,
           file_path   TEXT NOT NULL,
           created_by  INTEGER,
           created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -185,8 +186,113 @@ async function initDB() {
       `);
 
       // Seed only if empty
-      try { await pool.run("ALTER TABLE amsam_events ADD COLUMN visibility TEXT CHECK(visibility IN ('student','all')) NOT NULL DEFAULT 'student'"); } catch(e) {}
+      try { await pool.run("ALTER TABLE amsam_events ADD COLUMN visibility TEXT NOT NULL DEFAULT 'student'"); } catch(e) {}
+      // Automatic migration: rebuild amsam_events if it has the legacy CHECK constraint on visibility
+      try {
+        const row = await pool.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='amsam_events'");
+        if (row && row.sql && row.sql.includes('CHECK(visibility')) {
+          console.log('🔄 Migrating SQLite amsam_events to remove visibility CHECK constraint...');
+          await pool.run('PRAGMA foreign_keys=off;');
+          await pool.run('BEGIN TRANSACTION;');
+          await pool.run(`
+            CREATE TABLE IF NOT EXISTS amsam_events_new (
+              id          INTEGER PRIMARY KEY AUTOINCREMENT,
+              title       TEXT NOT NULL,
+              description TEXT,
+              venue       TEXT,
+              event_date  TEXT,
+              event_time  TEXT,
+              fee         INTEGER DEFAULT 0,
+              fee_member  INTEGER DEFAULT 0,
+              club_fees   TEXT DEFAULT NULL,
+              created_by  INTEGER,
+              visibility  TEXT NOT NULL DEFAULT 'student',
+              created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (created_by) REFERENCES amsam_users(id) ON DELETE SET NULL
+            )
+          `);
+          await pool.run(`INSERT INTO amsam_events_new SELECT id, title, description, venue, event_date, event_time, fee, fee_member, club_fees, created_by, visibility, created_at FROM amsam_events`);
+          await pool.run(`DROP TABLE amsam_events`);
+          await pool.run(`ALTER TABLE amsam_events_new RENAME TO amsam_events`);
+          await pool.run('COMMIT;');
+          await pool.run('PRAGMA foreign_keys=on;');
+          console.log('✅ SQLite amsam_events migrated successfully!');
+        }
+      } catch(e) {
+        try { await pool.run('ROLLBACK;'); await pool.run('PRAGMA foreign_keys=on;'); } catch(err) {}
+        console.error('Migration error:', e.message);
+      }
       try { await pool.run("ALTER TABLE amsam_events ADD COLUMN fee_member INTEGER DEFAULT 0"); } catch(e) {}
+      try { await pool.run("ALTER TABLE amsam_events ADD COLUMN club_fees TEXT DEFAULT NULL"); } catch(e) {}
+      try { await pool.run("ALTER TABLE amsam_users ADD COLUMN clubs TEXT DEFAULT NULL"); } catch(e) {}
+      try { await pool.run("ALTER TABLE amsam_users ADD COLUMN membership_valid_till TEXT DEFAULT NULL"); } catch(e) {}
+
+      // Workshops feature
+      await pool.run(`
+        CREATE TABLE IF NOT EXISTS amsam_workshops (
+          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+          title            TEXT NOT NULL,
+          description      TEXT,
+          venue            TEXT,
+          workshop_date    TEXT,
+          workshop_to_date TEXT,
+          workshop_time    TEXT,
+          seats_member     INTEGER DEFAULT 0,
+          seats_non_member INTEGER DEFAULT 0,
+          seats_club       INTEGER DEFAULT 0,
+          club_name        TEXT DEFAULT NULL,
+          created_by       INTEGER,
+          visibility       TEXT NOT NULL DEFAULT 'student',
+          created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (created_by) REFERENCES amsam_users(id) ON DELETE SET NULL
+        )
+      `);
+      await pool.run(`
+        CREATE TABLE IF NOT EXISTS amsam_workshop_registrations (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          workshop_id   INTEGER NOT NULL,
+          user_id       INTEGER NOT NULL,
+          seat_type     TEXT CHECK(seat_type IN ('member','non_member','club')) NOT NULL,
+          registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (workshop_id, user_id),
+          FOREIGN KEY (workshop_id) REFERENCES amsam_workshops(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id)    REFERENCES amsam_users(id)     ON DELETE CASCADE
+        )
+      `);
+      // Migration: add workshop-specific columns if the table existed before (e.g. as events table)
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN workshop_date TEXT'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN workshop_to_date TEXT'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN workshop_time TEXT'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN seats_member INTEGER DEFAULT 0'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN seats_non_member INTEGER DEFAULT 0'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN seats_club INTEGER DEFAULT 0'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN club_name TEXT DEFAULT NULL'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN fee_member INTEGER DEFAULT 0'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN fee_non_member INTEGER DEFAULT 0'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN fee_club INTEGER DEFAULT 0'); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshops ADD COLUMN club_slots TEXT DEFAULT NULL'); } catch(e) {}
+      try { await pool.run("ALTER TABLE amsam_workshops ADD COLUMN visibility TEXT NOT NULL DEFAULT 'student'"); } catch(e) {}
+      // Migration: add missing columns to workshop_registrations (may have been created as event registrations)
+      try { await pool.run("ALTER TABLE amsam_workshop_registrations ADD COLUMN seat_type TEXT NOT NULL DEFAULT 'non_member'"); } catch(e) {}
+      try { await pool.run('ALTER TABLE amsam_workshop_registrations ADD COLUMN registered_at DATETIME DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
+
+      // Clubs table
+      await pool.run(`
+        CREATE TABLE IF NOT EXISTS amsam_clubs (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          name       TEXT UNIQUE NOT NULL,
+          icon       TEXT DEFAULT '🎭',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      try { await pool.run("ALTER TABLE amsam_clubs ADD COLUMN icon TEXT DEFAULT '🎭'"); } catch(e) {}
+      // Seed default clubs if none exist
+      const clubCount = await pool.get('SELECT COUNT(*) as c FROM amsam_clubs');
+      if ((clubCount?.c ?? 0) === 0) {
+        for (const name of ['Literature', 'Sports', 'Music', 'Arts', 'Tech']) {
+          try { await pool.run('INSERT INTO amsam_clubs (name) VALUES (?)', [name]); } catch(e) {}
+        }
+      }
       const row = await pool.get('SELECT COUNT(*) as c FROM amsam_users');
       const count = row ? row.c : 0;
 
@@ -249,6 +355,7 @@ async function initDB() {
           event_time  VARCHAR(50),
           fee         INT DEFAULT 0,
           fee_member  INT DEFAULT 0,
+          club_fees   TEXT DEFAULT NULL,
           created_by  INT,
           visibility  VARCHAR(50) NOT NULL DEFAULT 'student',
           created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -260,7 +367,7 @@ async function initDB() {
           id          INT AUTO_INCREMENT PRIMARY KEY,
           title       VARCHAR(255) NOT NULL,
           description TEXT,
-          category    ENUM('MOM','MOU','Letters','Finance') NOT NULL,
+          category    ENUM('Int','Ext','Adm','Ntc','Agr') NOT NULL,
           file_path   VARCHAR(500) NOT NULL,
           created_by  INT,
           created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -292,11 +399,80 @@ async function initDB() {
       `);
 
       // Migrate existing installations — add columns/values if missing
-      try { await conn.query(`ALTER TABLE amsam_users MODIFY role ENUM('super_admin','sub_admin','student','guest') NOT NULL DEFAULT 'student'`); } catch(e) {}
+      try { await conn.query(`ALTER TABLE amsam_users MODIFY role ENUM('super_admin','sub_admin','student','guest','pg_student') NOT NULL DEFAULT 'student'`); } catch(e) {}
       try { await conn.query(`ALTER TABLE amsam_users ADD COLUMN organization VARCHAR(255) DEFAULT NULL`); } catch(e) {}
       try { await conn.query(`ALTER TABLE amsam_events ADD COLUMN visibility VARCHAR(50) NOT NULL DEFAULT 'student'`); } catch(e) {}
       try { await conn.query(`ALTER TABLE amsam_events ADD COLUMN fee_member INT DEFAULT 0`); } catch(e) {}
+      try { await conn.query(`ALTER TABLE amsam_events ADD COLUMN club_fees TEXT DEFAULT NULL`); } catch(e) {}
+      try { await conn.query(`ALTER TABLE amsam_users ADD COLUMN clubs VARCHAR(255) DEFAULT NULL`); } catch(e) {}
+      try { await conn.query(`ALTER TABLE amsam_users ADD COLUMN membership_valid_till VARCHAR(50) DEFAULT NULL`); } catch(e) {}
 
+      // Workshops feature
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS amsam_workshops (
+          id               INT AUTO_INCREMENT PRIMARY KEY,
+          title            VARCHAR(255) NOT NULL,
+          description      TEXT,
+          venue            VARCHAR(255),
+          workshop_date    VARCHAR(50),
+          workshop_to_date VARCHAR(50),
+          workshop_time    VARCHAR(50),
+          seats_member     INT DEFAULT 0,
+          seats_non_member INT DEFAULT 0,
+          seats_club       INT DEFAULT 0,
+          club_name        VARCHAR(100) DEFAULT NULL,
+          created_by       INT,
+          visibility       VARCHAR(50) NOT NULL DEFAULT 'student',
+          created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (created_by) REFERENCES amsam_users(id) ON DELETE SET NULL
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS amsam_workshop_registrations (
+          id            INT AUTO_INCREMENT PRIMARY KEY,
+          workshop_id   INT NOT NULL,
+          user_id       INT NOT NULL,
+          seat_type     ENUM('member','non_member','club') NOT NULL,
+          registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_wreg (workshop_id, user_id),
+          FOREIGN KEY (workshop_id) REFERENCES amsam_workshops(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id)    REFERENCES amsam_users(id)     ON DELETE CASCADE
+        )
+      `);
+      // MySQL Migrations for workshops (if the table already existed)
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN workshop_date VARCHAR(50)'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN workshop_to_date VARCHAR(50)'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN workshop_time VARCHAR(50)'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN seats_member INT DEFAULT 0'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN seats_non_member INT DEFAULT 0'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN seats_club INT DEFAULT 0'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN club_name VARCHAR(100) DEFAULT NULL'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN fee_member INT DEFAULT 0'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN fee_non_member INT DEFAULT 0'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN fee_club INT DEFAULT 0'); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshops ADD COLUMN club_slots TEXT DEFAULT NULL'); } catch(e) {}
+      try { await conn.query("ALTER TABLE amsam_workshops ADD COLUMN visibility VARCHAR(50) NOT NULL DEFAULT 'student'"); } catch(e) {}
+      
+      try { await conn.query("ALTER TABLE amsam_workshop_registrations ADD COLUMN seat_type ENUM('member','non_member','club') NOT NULL DEFAULT 'non_member'"); } catch(e) {}
+      try { await conn.query('ALTER TABLE amsam_workshop_registrations ADD COLUMN registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
+
+      // Clubs table
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS amsam_clubs (
+          id         INT AUTO_INCREMENT PRIMARY KEY,
+          name       VARCHAR(100) UNIQUE NOT NULL,
+          icon       VARCHAR(20) DEFAULT '🎭',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      try { await conn.query("ALTER TABLE amsam_clubs ADD COLUMN icon VARCHAR(20) DEFAULT '🎭'"); } catch(e) {}
+      // Seed default clubs if none exist
+      const [[{ clubCount }]] = await conn.query('SELECT COUNT(*) as clubCount FROM amsam_clubs');
+      if (clubCount === 0) {
+        for (const name of ['Literature', 'Sports', 'Music', 'Arts', 'Tech']) {
+          try { await conn.query('INSERT INTO amsam_clubs (name) VALUES (?)', [name]); } catch(e) {}
+        }
+      }
       // Seed only if empty
       const [[{ c }]] = await conn.query('SELECT COUNT(*) as c FROM amsam_users');
       if (c === 0) {

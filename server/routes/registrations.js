@@ -15,6 +15,27 @@ function getRazorpayInstance() {
   });
 }
 
+// Helper: determine applicable fee for an event
+function resolveEventFee(event, user) {
+  const isMember = user && user.is_paid === 1;
+  if (isMember) {
+    return event.fee_member !== undefined && event.fee_member !== null ? event.fee_member : event.fee;
+  }
+  if (event.club_fees && user && user.clubs) {
+    try {
+      const cFees = typeof event.club_fees === 'string' ? JSON.parse(event.club_fees) : event.club_fees;
+      const userClubs = user.clubs.split(',').map(c => c.trim().toLowerCase());
+      if (Array.isArray(cFees)) {
+        const match = cFees.find(cf => cf.club && userClubs.includes(cf.club.trim().toLowerCase()));
+        if (match && match.fee !== undefined && match.fee !== null) {
+          return parseInt(match.fee);
+        }
+      }
+    } catch (e) {}
+  }
+  return event.fee;
+}
+
 // GET /api/registrations/my-registrations
 router.get('/my-registrations', authenticate, async (req, res) => {
   try {
@@ -44,12 +65,9 @@ router.post('/:eventId/create-order', authenticate, async (req, res) => {
     );
     if (existing) return res.status(400).json({ error: 'Already registered for this event' });
 
-    // Determine correct fee: paid members get fee_member, others get fee
-    const user = await db.get('SELECT is_paid FROM amsam_users WHERE id = ?', [req.user.id]);
-    const isMember = user && user.is_paid === 1;
-    const applicableFee = isMember
-      ? (event.fee_member !== undefined && event.fee_member !== null ? event.fee_member : event.fee)
-      : event.fee;
+    // Determine correct fee: paid members get fee_member, club members get club fee, others get fee
+    const user = await db.get('SELECT is_paid, clubs FROM amsam_users WHERE id = ?', [req.user.id]);
+    const applicableFee = resolveEventFee(event, user);
 
     // Free event — register directly
     if (!applicableFee || applicableFee === 0) {
@@ -147,16 +165,17 @@ router.post('/:eventId/verify-payment', authenticate, async (req, res) => {
     );
 
     // Send receipt email asynchronously
-    const student = await db.get('SELECT name, email FROM amsam_users WHERE id = ?', [req.user.id]);
-    const event   = await db.get('SELECT title, event_date, venue, fee FROM amsam_events WHERE id = ?', [eventId]);
+    const student = await db.get('SELECT name, email, is_paid, clubs FROM amsam_users WHERE id = ?', [req.user.id]);
+    const event   = await db.get('SELECT title, event_date, venue, fee, fee_member, club_fees FROM amsam_events WHERE id = ?', [eventId]);
     if (student && event) {
+      const actualPaid = resolveEventFee(event, student);
       sendReceiptEmail({
         toEmail:     student.email,
         studentName: student.name,
         eventTitle:  event.title,
         eventDate:   event.event_date,
         eventVenue:  event.venue,
-        amountPaid:  event.fee,
+        amountPaid:  actualPaid,
         paymentId:   razorpay_payment_id,
         qrCode,
       }).catch(err => console.error('Receipt email failed:', err.message));

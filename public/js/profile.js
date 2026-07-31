@@ -10,12 +10,19 @@ async function loadProfile() {
 
     // Render left profile card
     const photoHTML = profile.photo_path
-      ? `<img src="${profile.photo_path}" alt="${profile.name}" class="profile-photo"/>`
-      : `<div class="profile-initials">${profile.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`;
+      ? `<img src="${profile.photo_path}" alt="${profile.name}" class="profile-photo" id="profilePhotoImg"/>`
+      : `<div class="profile-initials" id="profilePhotoImg">${profile.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`;
 
     document.getElementById('profileCard').innerHTML = `
       <div class="profile-card-top">
-        <div class="profile-photo-wrap">${photoHTML}</div>
+        <div class="profile-photo-wrap" onclick="document.getElementById('profilePhotoInput').click()" title="Click to change photo">
+          ${photoHTML}
+          <div class="photo-upload-overlay">
+            <span class="cam-icon">📷</span>
+            <span>Change Photo</span>
+          </div>
+        </div>
+        <input type="file" id="profilePhotoInput" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="uploadProfilePhoto(this)"/>
         <div class="profile-name">${profile.name}</div>
         <div class="profile-clgid">${profile.college_id}</div>
       </div>
@@ -44,6 +51,10 @@ async function loadProfile() {
           <span class="info-icon">👤</span>
           <div><div class="info-label">Role</div><div class="info-value"><span class="badge badge-student">Student Member</span></div></div>
         </div>
+        <div class="profile-info-row" style="${profile.clubs ? '' : 'display:none;'}">
+          <span class="info-icon">🎭</span>
+          <div><div class="info-label">Clubs</div><div class="info-value">${profile.clubs || '—'}</div></div>
+        </div>
         <div class="profile-info-row">
           <span class="info-icon">💳</span>
           <div>
@@ -67,6 +78,14 @@ async function loadProfile() {
     document.getElementById('mcInitials').textContent = profile.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     document.getElementById('mcCollegeId').textContent = profile.college_id;
     
+    // Add clubs to membership card
+    if (profile.clubs) {
+      document.getElementById('mcClubs').textContent = profile.clubs;
+      document.getElementById('mcClubsWrap').style.display = 'inline-block';
+    } else {
+      document.getElementById('mcClubsWrap').style.display = 'none';
+    }
+    
     // Convert year from batch, or default to some year
     const currentYear = new Date().getFullYear();
     const batchYear = profile.batch ? parseInt(profile.batch, 10) : currentYear - 2;
@@ -74,7 +93,13 @@ async function loadProfile() {
     const yearStr = yearDiff === 1 ? '1st' : yearDiff === 2 ? '2nd' : yearDiff === 3 ? '3rd' : yearDiff === 4 ? '4th' : `${yearDiff}th`;
     document.getElementById('mcDept').textContent = `${yearStr} Year ${profile.department || 'MBBS'}`;
     
-    document.getElementById('mcValidTill').textContent = `Dec 31, ${batchYear + 5}`;
+    // Valid Till: use admin-set date if available, otherwise compute from batch
+    if (profile.membership_valid_till) {
+      const d = new Date(profile.membership_valid_till);
+      document.getElementById('mcValidTill').textContent = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } else {
+      document.getElementById('mcValidTill').textContent = `Dec 31, ${batchYear + 5}`;
+    }
     
     document.getElementById('mcCardType').textContent = profile.role === 'guest' ? 'GUEST MEMBERSHIP CARD' : 'STUDENT MEMBERSHIP CARD';
 
@@ -131,6 +156,71 @@ async function loadProfile() {
 
   } catch (err) {
     showToast('Failed to load profile: ' + err.message, 'error');
+  }
+}
+
+// Upload profile photo
+async function uploadProfilePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Client-side size guard (5 MB)
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Image must be smaller than 5 MB', 'error');
+    input.value = '';
+    return;
+  }
+
+  // Show instant local preview
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const wrap = document.querySelector('.profile-photo-wrap');
+    if (!wrap) return;
+    // Replace or update the photo element
+    const existing = document.getElementById('profilePhotoImg');
+    if (existing) {
+      if (existing.tagName === 'IMG') {
+        existing.src = e.target.result;
+      } else {
+        // Was initials div — swap for img
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.alt = 'Profile';
+        img.className = 'profile-photo';
+        img.id = 'profilePhotoImg';
+        existing.replaceWith(img);
+      }
+    }
+  };
+  reader.readAsDataURL(file);
+
+  // Upload to server
+  const fd = new FormData();
+  fd.append('photo', file);
+  showToast('⏳ Uploading photo…', 'info');
+
+  try {
+    const resp = await fetch('/api/auth/me/photo', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getToken()}` },
+      body: fd
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Upload failed');
+
+    showToast('✅ Profile photo updated!', 'success');
+
+    // Update nav avatar
+    const user = getUser();
+    if (user) {
+      user.photo_path = data.photo_path;
+      localStorage.setItem('amsam_user', JSON.stringify(user));
+      renderNavAvatar(user);
+    }
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+  } finally {
+    input.value = ''; // reset so same file can be re-selected
   }
 }
 

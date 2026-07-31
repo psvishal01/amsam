@@ -42,12 +42,17 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     let users;
     if (req.query.role === 'guest') {
       users = await db.all(
-        'SELECT id, name, college_id, email, photo_path, role, phone, organization, created_at FROM amsam_users WHERE role = ? ORDER BY created_at DESC',
+        'SELECT id, name, college_id, email, photo_path, role, phone, organization, clubs, created_at FROM amsam_users WHERE role = ? ORDER BY created_at DESC',
         ['guest']
+      );
+    } else if (req.query.role === 'pg_student') {
+      users = await db.all(
+        'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, clubs, membership_valid_till, created_at FROM amsam_users WHERE role = ? ORDER BY created_at DESC',
+        ['pg_student']
       );
     } else {
       users = await db.all(
-        "SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, created_at FROM amsam_users WHERE role != 'guest' ORDER BY created_at DESC"
+        "SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, clubs, membership_valid_till, created_at FROM amsam_users WHERE role NOT IN ('guest','pg_student') ORDER BY created_at DESC"
       );
     }
     res.json(users);
@@ -59,15 +64,29 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // ── GET /api/users/import-template ────────────────────────────────
 router.get('/import-template', authenticate, requireSuperAdmin, (req, res) => {
+  const role = req.query.role === 'pg_student' ? 'pg_student' : (req.query.role === 'guest' ? 'guest' : 'student');
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([
-    ['Name', 'College ID', 'Email', 'Batch', 'Department', 'Phone'],
-    ['Arjun Sharma', 'MBBS2024001', 'arjun@aiims.edu.in', '2024', 'MBBS', '9876543210'],
-  ]);
-  ws['!cols'] = [20, 16, 28, 10, 14, 14].map(w => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, ws, 'Students');
+  let ws, filename, sheetName;
+  if (role === 'pg_student') {
+    ws = XLSX.utils.aoa_to_sheet([
+      ['Name', 'College ID', 'Email', 'Batch', 'Department', 'Phone'],
+      ['Dr. Priya Nair', 'PG2024001', 'priya.pg@aiims.edu.in', '2024', 'MD Medicine', '9876543210'],
+    ]);
+    ws['!cols'] = [20, 16, 28, 10, 18, 14].map(w => ({ wch: w }));
+    sheetName = 'PG Students (RDA)';
+    filename = 'amsam_rda_pg_template.xlsx';
+  } else {
+    ws = XLSX.utils.aoa_to_sheet([
+      ['Name', 'College ID', 'Email', 'Batch', 'Department', 'Phone'],
+      ['Arjun Sharma', 'MBBS2024001', 'arjun@aiims.edu.in', '2024', 'MBBS', '9876543210'],
+    ]);
+    ws['!cols'] = [20, 16, 28, 10, 14, 14].map(w => ({ wch: w }));
+    sheetName = 'Students';
+    filename = 'amsam_students_template.xlsx';
+  }
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  res.setHeader('Content-Disposition', 'attachment; filename="amsam_students_template.xlsx"');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.send(buf);
 });
@@ -80,7 +99,7 @@ router.get('/:id', authenticate, async (req, res) => {
     if (!isAdmin && !isSelf) return res.status(403).json({ error: 'Access denied' });
 
     const user = await db.get(
-      'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, created_at FROM amsam_users WHERE id = ?',
+      'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, clubs, membership_valid_till, created_at FROM amsam_users WHERE id = ?',
       [req.params.id]
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -93,50 +112,63 @@ router.get('/:id', authenticate, async (req, res) => {
 // ── POST /api/users ───────────────────────────────────────────────
 router.post('/', authenticate, requireSuperAdmin, async (req, res) => {
   try {
-    const { name, college_id, email, password, batch, department, phone, role, organization } = req.body;
-    const userRole = role || 'student';
+    const { name, college_id, email, password, batch, department, phone, role, organization, clubs } = req.body;
+    const validRoles = ['student', 'guest', 'pg_student'];
+    const userRole = validRoles.includes(role) ? role : 'student';
     
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'name, email, password are required' });
     }
-    if (userRole === 'student' && !college_id) {
+    if ((userRole === 'student' || userRole === 'pg_student') && !college_id) {
       return res.status(400).json({ error: 'college_id is required for students' });
     }
     
     const finalCollegeId = (userRole === 'guest' && !college_id) ? ('GUEST_' + Date.now()) : college_id;
     const hash = bcrypt.hashSync(password, 10);
     const result = await db.run(
-      'INSERT INTO amsam_users (name, college_id, email, password_hash, role, batch, department, phone, organization) VALUES (?,?,?,?,?,?,?,?,?)',
-      [name, finalCollegeId, email.toLowerCase(), hash, userRole, batch || null, department || null, phone || null, organization || null]
+      'INSERT INTO amsam_users (name, college_id, email, password_hash, role, batch, department, phone, organization, clubs) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [name, finalCollegeId, email.toLowerCase(), hash, userRole, batch || null, department || null, phone || null, organization || null, clubs || null]
     );
     res.status(201).json({ message: 'User created', id: result.insertId });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or College ID already exists' });
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error creating user:', err);
+    if (err.code === 'ER_DUP_ENTRY' || err.message?.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'Email or College ID already exists' });
+    }
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });
 
 // ── PUT /api/users/:id ────────────────────────────────────────────
 router.put('/:id', authenticate, requireSuperAdmin, async (req, res) => {
   try {
-    const { name, college_id, email, batch, department, phone, role, organization } = req.body;
+    const { name, college_id, email, batch, department, phone, role, organization, clubs, membership_valid_till, password } = req.body;
     const user = await db.get('SELECT * FROM amsam_users WHERE id = ?', [req.params.id]);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    await db.run(
-      'UPDATE amsam_users SET name=?, college_id=?, email=?, batch=?, department=?, phone=?, role=?, organization=? WHERE id=?',
-      [
-        name || user.name,
-        college_id || user.college_id,
-        email ? email.toLowerCase() : user.email,
-        batch !== undefined ? batch : user.batch,
-        department !== undefined ? department : user.department,
-        phone !== undefined ? phone : user.phone,
-        role || user.role,
-        organization !== undefined ? organization : user.organization,
-        req.params.id
-      ]
-    );
+    let sql = 'UPDATE amsam_users SET name=?, college_id=?, email=?, batch=?, department=?, phone=?, role=?, organization=?, clubs=?, membership_valid_till=?';
+    let params = [
+      name || user.name,
+      college_id || user.college_id,
+      email ? email.toLowerCase() : user.email,
+      batch !== undefined ? batch : user.batch,
+      department !== undefined ? department : user.department,
+      phone !== undefined ? phone : user.phone,
+      role || user.role,
+      organization !== undefined ? organization : user.organization,
+      clubs !== undefined ? clubs : user.clubs,
+      membership_valid_till !== undefined ? membership_valid_till : user.membership_valid_till
+    ];
+
+    if (password && password.trim() !== '') {
+      sql += ', password_hash=?';
+      params.push(bcrypt.hashSync(password.trim(), 10));
+    }
+
+    sql += ' WHERE id=?';
+    params.push(req.params.id);
+
+    await db.run(sql, params);
     res.json({ message: 'User updated' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -253,6 +285,23 @@ router.put('/:id/payment', authenticate, requireSuperAdmin, async (req, res) => 
   }
 });
 
+// ── PUT /api/users/:id/validity ───────────────────────────────────
+router.put('/:id/validity', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { membership_valid_till } = req.body;
+    const target = await db.get('SELECT * FROM amsam_users WHERE id = ?', [req.params.id]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    await db.run(
+      'UPDATE amsam_users SET membership_valid_till = ? WHERE id = ?',
+      [membership_valid_till || null, req.params.id]
+    );
+    res.json({ message: 'Membership validity updated', membership_valid_till: membership_valid_till || null });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ── Helper: generate random password ──────────────────────────────
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -266,7 +315,7 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
 
     // sendEmail flag: look in query string first, fallback to body
     const sendEmail = (req.query.sendEmail === 'true') || (req.body.sendEmail === 'true');
-    const importRole = req.query.role === 'guest' ? 'guest' : 'student';
+    const importRole = req.query.role === 'guest' ? 'guest' : (req.query.role === 'pg_student' ? 'pg_student' : 'student');
     console.log(`Bulk import config: sendEmail=${sendEmail}, role=${importRole} (query: ${req.query.sendEmail}, body: ${req.body.sendEmail})`);
 
     let rows;
@@ -303,8 +352,9 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
       const phone      = get(['Phone', 'Mobile', 'phone']) || null;
 
       // Role-specific fields
-      const batch      = importRole === 'student' ? (get(['Batch', 'Year', 'batch']) || null) : null;
-      const department = importRole === 'student' ? (get(['Department', 'Dept', 'department']) || null) : null;
+      const isStudentLike = importRole === 'student' || importRole === 'pg_student';
+      const batch      = isStudentLike ? (get(['Batch', 'Year', 'batch']) || null) : null;
+      const department = isStudentLike ? (get(['Department', 'Dept', 'department']) || null) : null;
       const organization = importRole === 'guest' ? (get(['Organization', 'Institution', 'Org', 'organization']) || null) : null;
 
       if (importRole === 'guest' && !college_id) {
@@ -329,7 +379,7 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
       if (existing) {
         if (!sendEmail) {
           // Update mode: refresh data without touching password
-          if (importRole === 'student') {
+          if (isStudentLike) {
             await db.run(
               'UPDATE amsam_users SET name=?, college_id=?, email=?, batch=?, department=?, phone=? WHERE id=?',
               [name, college_id, email.toLowerCase(), batch, department, phone, existing.id]
@@ -358,7 +408,7 @@ router.post('/bulk-import', authenticate, requireSuperAdmin, memUpload.single('f
 
       try {
         let result;
-        if (importRole === 'student') {
+        if (isStudentLike) {
           result = await db.run(
             'INSERT INTO amsam_users (name, college_id, email, password_hash, role, batch, department, phone) VALUES (?,?,?,?,?,?,?,?)',
             [name, college_id, email.toLowerCase(), passwordHash, importRole, batch, department, phone]

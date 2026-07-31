@@ -116,13 +116,43 @@ router.post('/change-password', authenticate, async (req, res) => {
 router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await db.get(
-      'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, created_at FROM amsam_users WHERE id = ?',
+      'SELECT id, name, college_id, email, photo_path, role, batch, department, phone, is_paid, paid_at, clubs, membership_valid_till, created_at FROM amsam_users WHERE id = ?',
       [req.user.id]
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/auth/me/photo — self-service profile photo upload
+const multer = require('multer');
+const path   = require('path');
+const selfPhotoUpload = multer({
+  storage: multer.diskStorage({
+    destination: path.join(__dirname, '../uploads'),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `user_${req.user.id}_${Date.now()}${ext}`);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter: (req, file, cb) => {
+    const ok = /jpeg|jpg|png|webp/.test(path.extname(file.originalname).toLowerCase()) &&
+               /jpeg|jpg|png|webp/.test(file.mimetype);
+    ok ? cb(null, true) : cb(new Error('Only image files (jpeg, jpg, png, webp) are allowed'));
+  }
+});
+
+router.post('/me/photo', authenticate, selfPhotoUpload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const photoPath = `/uploads/${req.file.filename}`;
+    await require('../db').run('UPDATE amsam_users SET photo_path = ? WHERE id = ?', [photoPath, req.user.id]);
+    res.json({ message: 'Profile photo updated', photo_path: photoPath });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });
 

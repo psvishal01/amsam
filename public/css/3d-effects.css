@@ -262,3 +262,20 @@ tr:hover td {
   perspective: 1200px;
   perspective-origin: center;
 }
+
+/* ── MOBILE & TOUCH SCREEN 3D NORMALIZATION ───────── */
+@media (max-width: 768px), (hover: none) {
+  .tilt-card:hover, .nav-card:hover, .card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px rgba(26,32,64,.12) !important;
+  }
+  .tilt-card .card-inner, .tilt-card .card-icon-3d {
+    transform: none !important;
+  }
+  .nav-logo-circle:hover {
+    transform: none !important;
+  }
+  .float-anim, .float-anim-slow {
+    animation: none !important;
+  }
+}

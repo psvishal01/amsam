@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="AMSAM"/>
   <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
-  <link rel="stylesheet" href="/css/global.css"/>
+  <link rel="stylesheet" href="/css/global.css?v=6"/>
   <link rel="stylesheet" href="/css/3d-effects.css"/>
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
@@ -27,7 +27,18 @@
       background:linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
       padding:2rem; text-align:center; position:relative;
     }
-    .profile-photo-wrap { position:relative; display:inline-block; margin-bottom:1rem; }
+    .profile-photo-wrap { position:relative; display:inline-block; margin-bottom:1rem; cursor:pointer; }
+    .profile-photo-wrap:hover .photo-upload-overlay { opacity:1; }
+    .photo-upload-overlay {
+      position:absolute; inset:0; border-radius:50%;
+      background:rgba(0,0,0,.45); display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      opacity:0; transition:opacity .2s ease;
+      font-size:.65rem; color:#fff; font-weight:600; gap:.15rem;
+    }
+    .photo-upload-overlay .cam-icon { font-size:1.3rem; }
+    #profilePhotoInput { display:none; }
+
     .profile-photo {
       width:100px; height:100px; border-radius:50%;
       border:4px solid rgba(255,255,255,.3);
@@ -228,6 +239,9 @@
                       <div class="mc-name" id="mcName">Loading…</div>
                       <div class="mc-detail" id="mcDept">3rd Year MBBS</div>
                       <div class="mc-detail" id="mcCollegeId">AIIMS/MBBS/2024/089</div>
+                      <div class="mc-detail" id="mcClubsWrap" style="display:none; margin-top:4px;">
+                        <span style="background:rgba(255,255,255,0.15); padding:2px 6px; border-radius:4px; font-size:0.65rem; color:#fff;" id="mcClubs"></span>
+                      </div>
                     </div>
                     <div class="mc-valid">
                       Valid till
@@ -282,7 +296,7 @@
 </main>
 
 <footer class="footer">
-  <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri.</p>
+  <p>© 2025 <strong>AMSAM</strong> — Association of Medical Students, AIIMS Mangalagiri.<br><a href="/privacy-policy.html" style="color:inherit;text-decoration:underline;">Privacy Policy</a> &middot; <a href="/terms-conditions.html" style="color:inherit;text-decoration:underline;">Terms & Conditions</a> &middot; <a href="/contact-us.html" style="color:inherit;text-decoration:underline;">Contact Us</a></p>
 </footer>
 
 <script src="/js/auth.js"></script>

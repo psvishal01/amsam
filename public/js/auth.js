@@ -17,9 +17,11 @@ function saveUser(user) {
 }
 
 function logout() {
+  const u = getUser();
+  const dest = u?.role === 'pg_student' ? '/rda-login.html' : '/index.html';
   localStorage.removeItem('amsam_token');
   localStorage.removeItem('amsam_user');
-  window.location.href = '/index.html';
+  window.location.href = dest;
 }
 
 async function apiFetch(path, options = {}) {
@@ -68,6 +70,17 @@ function requireAdminAccess() {
 
 // Render navbar avatar initials or photo
 function renderNavAvatar(user) {
+  if (user && user.role === 'pg_student') {
+    const logoImg = document.querySelector('.nav-logo-circle img');
+    if (logoImg) {
+      logoImg.src = '/icons/rda-logo.png';
+      logoImg.alt = 'RDA Logo';
+    }
+    const brandName = document.querySelector('.nav-brand-name');
+    if (brandName) {
+      brandName.textContent = 'RDA';
+    }
+  }
   const el = document.getElementById('navAvatar');
   if (!el) return;
   if (user.photo_path) {
